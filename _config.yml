@@ -9,7 +9,7 @@
 # Basic Site Settings
 locale                   : "en-US"
 site_theme               : "default" # Currently available options are "default", "air"
-title                    : "Dr. Nadav Kohen"
+title                    : "Nadav Kohen"
 title_separator          : "-"
 name                     : &name "Dr. Nadav Kohen"
 description              : &description "Cryptography Researcher at Chaincode Labs"   # Update this with a general description of your site, this is the default if not overridden by a page
@@ -92,7 +92,7 @@ publication_category:
 teaser                   :  # filename of teaser fallback teaser image placed in /images/ for social media previews
 breadcrumbs              : false # true, false (default)
 words_per_minute         : 160
-future                   : true
+future                   : false
 read_more                : "disabled" # if enabled, adds "Read more" links to excerpts
 talkmap_link             : false      #change to true to add link to talkmap on talks page
 comments:
