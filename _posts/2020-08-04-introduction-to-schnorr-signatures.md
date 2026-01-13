@@ -22,7 +22,7 @@ While this blog series will talk about Schnorr signatures quite generally, most 
 ## Schnorr Signature Series:
 
 * [Schnorr Signature Security: Part 1 – Schnorr ID Protocol](/posts/2020/08/schnorr-id-protocol)
-* [Schnorr Signature Security: Part 2 – From IDs to Signatures](https://web.archive.org/web/20241113012850/https://suredbits.com/schnorr-security-part-2-from-id-to-signature/)
+* [Schnorr Signature Security: Part 2 – From IDs to Signatures](/posts/2020/08/schnorr-id-to-signature/)
 * [Schnorr Multi-Signatures – MuSig](https://web.archive.org/web/20241113012850/https://suredbits.com/schnorr-applications-musig/)
 * [Scriptless Scripts – Adaptor Signatures](https://web.archive.org/web/20241113012850/https://suredbits.com/schnorr-applications-scriptless-scripts/)
 * [Batch Verification](https://web.archive.org/web/20241113012850/https://suredbits.com/schnorr-applications-batch-verification/)
