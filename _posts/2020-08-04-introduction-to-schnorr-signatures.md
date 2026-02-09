@@ -2,7 +2,7 @@
 title: 'Introduction to Schnorr Signatures'
 author: 'Nadav Kohen'
 date: 2020-08-04
-permalink: /posts/2020/08/introduction-to-schnorr-signatures/
+permalink: /blog/introduction-to-schnorr-signatures/
 tags:
   - Bitcoin
   - Cryptography

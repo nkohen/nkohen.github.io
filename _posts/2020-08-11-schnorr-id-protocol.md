@@ -2,7 +2,7 @@
 title: 'Schnorr Security Part 1: Schnorr ID Protocol'
 author: 'Nadav Kohen'
 date: 2020-08-11
-permalink: /posts/2020/08/schnorr-id-protocol/
+permalink: /blog/schnorr-id-protocol/
 tags:
   - Bitcoin
   - Cryptography

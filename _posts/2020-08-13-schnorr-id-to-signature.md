@@ -2,7 +2,7 @@
 title: 'Schnorr Security Part 2: From ID to Signature'
 author: 'Nadav Kohen'
 date: 2020-08-13
-permalink: /posts/2020/08/schnorr-id-to-signature/
+permalink: /blog/schnorr-id-to-signature/
 tags:
   - Bitcoin
   - Cryptography

@@ -1,8 +1,8 @@
 ---
-title: 'Some Secrets Shared'
+title: '(WIP) Some Secrets Shared'
 author: 'Nadav Kohen'
 date: 2026-01-13
-permalink: /posts/2026/01/some-secrets-shared/
+permalink: /blog/some-secrets-shared/
 tags:
   - Cryptography
   - Digital Signatures
