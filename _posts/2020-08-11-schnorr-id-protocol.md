@@ -10,13 +10,13 @@ tags:
   - Schnorr
 ---
 
-In the [previous post](/posts/2020/08/introduction-to-schnorr-signatures/) of our introductory Schnorr series, we discussed the definition of Schnorr signatures and tried to build some intuition as to how Schnorr signatures work by looking at a sequence of choices that could have led us to the definition. In this post we will go even deeper and begin an argument for Schnorr’s security by deriving the signature scheme from yet another angle.
+In the [previous post](/blog/introduction-to-schnorr-signatures) of our introductory Schnorr series, we discussed the definition of Schnorr signatures and tried to build some intuition as to how Schnorr signatures work by looking at a sequence of choices that could have led us to the definition. In this post we will go even deeper and begin an argument for Schnorr’s security by deriving the signature scheme from yet another angle.
 
 ## Schnorr Signature Series:
 
-* [What are Schnorr Signatures – Introduction](/posts/2020/08/introduction-to-schnorr-signatures/)
-* [Schnorr Signature Security: Part 2 – From IDs to Signatures](/posts/2020/08/schnorr-id-to-signature/)
-* [Schnorr Multi-Signatures – MuSig](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-musig/)
+* [What are Schnorr Signatures – Introduction](/blog/introduction-to-schnorr-signatures)
+* [Schnorr Signature Security: Part 2 – From IDs to Signatures](/blog/schnorr-id-to-signature)
+* [Schnorr Multi-Signatures – MuSig](/blog/schnorr-applications-musig)
 * [Scriptless Scripts – Adaptor Signatures](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-scriptless-scripts/)
 * [Batch Verification](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-batch-verification/)
 * [Schnorr Threshold Sigantures](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-threshold-signatures/)
@@ -30,7 +30,7 @@ The argument given in this blog post and the next is not a complete or completel
 
 With this understanding in mind, the remainder of this blog series after the security argument will look at various tweaks of the Schnorr signature scheme that enable countless use cases for Bitcoin and beyond. I will note that understanding the security of Schnorr is not a prerequisite for exploring these later things.
 
-Before you read on, I recommend you are first comfortable with the [previous blog post's](/posts/2020/08/introduction-to-schnorr-signatures/) contents as I will be relying heavily on results and properties that were discovered in that post. I also recommend that you should be comfortable with the prerequisite topics linked in the previous blog post ([modular arithmetic](https://www.khanacademy.org/computing/computer-science/cryptography/modarithmetic/a/what-is-modular-arithmetic), [hash functions](https://nakamoto.com/hash-functions/), [public keys and elliptic curves](https://hackernoon.com/what-is-the-math-behind-elliptic-curve-cryptography-f61b25253da3)).
+Before you read on, I recommend you are first comfortable with the [previous blog post's](/blog/introduction-to-schnorr-signatures) contents as I will be relying heavily on results and properties that were discovered in that post. I also recommend that you should be comfortable with the prerequisite topics linked in the previous blog post ([modular arithmetic](https://www.khanacademy.org/computing/computer-science/cryptography/modarithmetic/a/what-is-modular-arithmetic), [hash functions](https://nakamoto.com/hash-functions/), [public keys and elliptic curves](https://hackernoon.com/what-is-the-math-behind-elliptic-curve-cryptography-f61b25253da3)).
 
 The last note I’d like to make before we get started is that I more-than-expect that the reader may need to reread portions of this post before feeling any comfort with this argument: this is normal when it comes to precise arguments, in preparing for writing this post I read and reread various security proofs countless times!
 

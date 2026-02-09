@@ -10,7 +10,7 @@ tags:
   - Schnorr
 ---
 
-In the [last blog post](/posts/2020/08/schnorr-id-protocol/), we began laying out the groundwork for what will become an argument that Schnorr signatures are secure. We discovered the Schnorr Identity Protocol and proved that it is secure and correct (specifically Complete, Sound, and Honest-Verifier Zero-knowledge). It is very unlikely that this blog post will make much sense if you have not yet read the [previous post](/posts/2020/08/schnorr-id-protocol/), so go read it if you haven’t already.
+In the [last blog post](/blog/schnorr-id-protocol), we began laying out the groundwork for what will become an argument that Schnorr signatures are secure. We discovered the Schnorr Identity Protocol and proved that it is secure and correct (specifically Complete, Sound, and Honest-Verifier Zero-knowledge). It is very unlikely that this blog post will make much sense if you have not yet read the [previous post](/blog/schnorr-id-protocol), so go read it if you haven’t already.
 
 In this post, we will complete our argument by converting our ID scheme into a signature scheme and arguing that our conversion from a correct ID protocol will result in a correct signature protocol.
 
@@ -18,9 +18,9 @@ With this argument complete, we will then use the remainder of this Schnorr blog
 
 Schnorr Signature Series:
 
-* [What are Schnorr Signatures – Introduction](/posts/2020/08/introduction-to-schnorr-signatures/)
-* [Schnorr Signature Security: Part 1 – Schnorr ID Protocol](/posts/2020/08/schnorr-id-protocol/)
-* [Schnorr Multi-Signatures – MuSig](https://web.archive.org/web/20241113021745/https://suredbits.com/schnorr-applications-musig/)
+* [What are Schnorr Signatures – Introduction](/blog/introduction-to-schnorr-signatures)
+* [Schnorr Signature Security: Part 1 – Schnorr ID Protocol](/blog/schnorr-id-protocol)
+* [Schnorr Multi-Signatures – MuSig](/blog/schnorr-applications-musig)
 * [Scriptless Scripts – Adaptor Signatures](https://web.archive.org/web/20241113021745/https://suredbits.com/schnorr-applications-scriptless-scripts/)
 * [Batch Verification](https://web.archive.org/web/20241113021745/https://suredbits.com/schnorr-applications-batch-verification/)
 * [Schnorr Threshold Sigantures](https://web.archive.org/web/20241113021745/https://suredbits.com/schnorr-applications-threshold-signatures/)

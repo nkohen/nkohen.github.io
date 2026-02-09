@@ -18,11 +18,11 @@ In this post, we will be discussing two forms of secret sharing: Replicated Secr
 
 ## Table of Contents
 
-* [2-of-3 Secret Sharing Examples](/posts/2026/01/some-secrets-shared/#2-of-3-secret-sharing-examples)
-* [Shamir Secret Sharing](/posts/2026/01/some-secrets-shared/#shamir-secret-sharing)
-* [Lagrange Interpolation](/posts/2026/01/some-secrets-shared/#lagrange-interpolation)
-* [Uniqueness of Polynomial Interpolation](/posts/2026/01/some-secrets-shared/#uniqueness-of-polynomial-interpolation)
-* [Replicated Secret Sharing](/posts/2026/01/some-secrets-shared/#replicated-secret-sharing)
+* [2-of-3 Secret Sharing Examples](/blog/some-secrets-shared/#2-of-3-secret-sharing-examples)
+* [Shamir Secret Sharing](/blog/some-secrets-shared/#shamir-secret-sharing)
+* [Lagrange Interpolation](/blog/some-secrets-shared/#lagrange-interpolation)
+* [Uniqueness of Polynomial Interpolation](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation)
+* [Replicated Secret Sharing](/blog/some-secrets-shared/#replicated-secret-sharing)
 
 ## 2-of-3 Secret Sharing Examples
 
@@ -48,7 +48,7 @@ Hence, if we give $$(1, s_1)$$ to Alice, $$(2, s_2)$$ to Bob, and $$(3, s_3)$$ t
 
 ## Shamir Secret Sharing
 
-Using lines as in our example above works great for any scheme where $$t=2$$ meaning that any two participants can learn the secret, but what if you wanted to do something similar to construct a scheme where $$t=3$$ participants must collaborate to recover the secret? As it turns out, there is a curve that is uniquely determined by any three of its points: a parabola! More generally, for any number $$t$$, a degree $$(t-1)$$ [polynomial](https://en.wikipedia.org/wiki/Polynomial) is a curve which is uniquely determined by any $t$ of its points. We justify this claim [below](/posts/2026/01/some-secrets-shared/#uniqueness-of-polynomial-interpolation). Furthermore, knowledge of any $$t-1$$ points yields no information about any other points on the curve assuming that the curve was generated randomly.
+Using lines as in our example above works great for any scheme where $$t=2$$ meaning that any two participants can learn the secret, but what if you wanted to do something similar to construct a scheme where $$t=3$$ participants must collaborate to recover the secret? As it turns out, there is a curve that is uniquely determined by any three of its points: a parabola! More generally, for any number $$t$$, a degree $$(t-1)$$ [polynomial](https://en.wikipedia.org/wiki/Polynomial) is a curve which is uniquely determined by any $t$ of its points. We justify this claim [below](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation). Furthermore, knowledge of any $$t-1$$ points yields no information about any other points on the curve assuming that the curve was generated randomly.
 
 In other words, if we want to do a $$t$$-of-$$n$$ secret sharing of $$s$$, we choose random values $$a_1, a_2,\ldots, a_{t-1}$$ and use these to define a polynomial
 
@@ -56,7 +56,7 @@ $$
 f(x) = s + a_1x + a_2x^2 + \cdots + a_{t-1}x^{t-1}.
 $$
 
-Because we set the constant term to $$s$$, we have that $$f(0) = s$$. Next, we set $$s_1 = f(1), s_2 = f(2), \ldots, s_n = f(n)$$ and distribute the values $$(1,s_1), (2, s_2), \ldots, (n, s_n)$$ to their respective parties. Finally, any $$t$$ parties can use their shares to reconstruct the polynomial $$f(x)$$, because it is determined by any $$t$$ of its points, and then they can compute $$s = f(0)$$. This scheme is called Shamir Secret Sharing (SSS) (TODO: foreshadow DKG/VSS). But how do we actually compute $$f(x)$$ from some set of $$t$$ points $$(x_1, y_1), (x_2, y_2), \ldots, (x_t, y_t)$$? The problem of computing a curve that fits a given set of points is known as *interpolation* and is discussed in the next section. For readers already familiar with the details of Lagrange interpolation, [skip ahead](/posts/2026/01/some-secrets-shared/#replicated-secret-sharing).
+Because we set the constant term to $$s$$, we have that $$f(0) = s$$. Next, we set $$s_1 = f(1), s_2 = f(2), \ldots, s_n = f(n)$$ and distribute the values $$(1,s_1), (2, s_2), \ldots, (n, s_n)$$ to their respective parties. Finally, any $$t$$ parties can use their shares to reconstruct the polynomial $$f(x)$$, because it is determined by any $$t$$ of its points, and then they can compute $$s = f(0)$$. This scheme is called Shamir Secret Sharing (SSS) (TODO: foreshadow DKG/VSS). But how do we actually compute $$f(x)$$ from some set of $$t$$ points $$(x_1, y_1), (x_2, y_2), \ldots, (x_t, y_t)$$? The problem of computing a curve that fits a given set of points is known as *interpolation* and is discussed in the next section. For readers already familiar with the details of Lagrange interpolation, [skip ahead](/blog/some-secrets-shared/#replicated-secret-sharing).
 
 ## Lagrange Interpolation
 
@@ -139,7 +139,7 @@ This particular method of reconstructing a polynomial from its points is known a
 
 ## Uniqueness of Polynomial Interpolation
 
-While it is completely sufficient for all practical purposes to simply assume/believe/trust that $$t$$ points uniquely define a degree $$(t-1)$$ polynomial, most arguments for why this must be the case are not particularly difficult (though they can be a bit dense), so I've included one such argument here just for fun. No content from this section is required to [read the rest of this post](/posts/2026/01/some-secrets-shared/#replicated-secret-sharing).
+While it is completely sufficient for all practical purposes to simply assume/believe/trust that $$t$$ points uniquely define a degree $$(t-1)$$ polynomial, most arguments for why this must be the case are not particularly difficult (though they can be a bit dense), so I've included one such argument here just for fun. No content from this section is required to [read the rest of this post](/blog/some-secrets-shared/#replicated-secret-sharing).
 
 We wish to prove the claim that if $$f(x)$$ and $$g(x)$$ are two polynomials of degree $$t-1$$, and $$f(x_i) = g(x_i)$$ for $$t$$ distinct values of $$x_i$$, then $$f(x) = g(x)$$ as polynomials. The difference of two polynomials of degree $$(t-1)$$ is of degree at most $$(t-1)$$, so that $$h(x) = f(x) - g(x)$$ is a polynomial of degree at most $$(t-1)$$ such that its output is $$0$$ when evaluated at any of the $$t$$ input values $$x_i$$. Such an input that causes a function to be evaluated to zero is called a *root* of that function. Therefore, it is sufficient to prove that if a degree $$(t-1)$$ polynomial, $$h(x)$$, has $$t$$ distinct roots, then $$h(x) = 0$$ (in our case this would imply that $$f(x) - g(x) = 0\Rightarrow f(x) = g(x)$$).
 
@@ -157,7 +157,7 @@ To summarize, we have shown that if a polynomial, $$h(x)$$, has a root, $$a$$, t
 
 ## Replicated Secret Sharing
 
-Recall from our [2-of-3 example](/posts/2026/01/some-secrets-shared/#2-of-3-secret-sharing-examples) at the beginning of this post that there is another way to construct a secret sharing scheme by creating a set of additive secrets, which are random subject to the constraint that the sum of all of the additive secrets is the original secret value, and then sharing some subset of these secrets with each participant in such a way that any $$t$$ of them collectively know all of the secrets. This idea can be formalized and generalized in the following way:
+Recall from our [2-of-3 example](/blog/some-secrets-shared/#2-of-3-secret-sharing-examples) at the beginning of this post that there is another way to construct a secret sharing scheme by creating a set of additive secrets, which are random subject to the constraint that the sum of all of the additive secrets is the original secret value, and then sharing some subset of these secrets with each participant in such a way that any $$t$$ of them collectively know all of the secrets. This idea can be formalized and generalized in the following way:
 
 For each subset $$a_i\subseteq \{1,2,\ldots, n\}$$ of size $$t-1$$, create a secret value $$\phi_i$$, where all but one of these values is chosen randomly and the final value is chosen so that the sum of all of the $$\phi_i$$ is equal to the secret, $$s$$. Share the value $$(\phi_i, a_i)$$ with each member whose index is **not** in $$a_i$$. In other words, for every "maximally unqualified subset" of participants, which are the subsets of size $$t-1$$, create a secret known to everyone not in that group of $$t-1$$ participants. This guarantees that $$t$$ participants are required to recover the secret as any $$t-1$$ participants collectively do not know one of the secrets. Furthermore, every $$t$$ participants do collectively know all of the secrets, since at least one of the $$t$$ must be in the complement of any subset $$a_i$$ of size $$t-1$$.
 
