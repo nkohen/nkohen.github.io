@@ -28,7 +28,7 @@ author:
   pronouns         : # example: "she/her"  
   bio              : "Cryptography Researcher at Chaincode Labs, chess, formal verification, and automatic sequence enthusiast"
   location         : "New York City"
-  employer         : "Chaincode Labs"
+  employer         : '<a href="https://chaincode.com/" style="display: inline;">Chaincode Labs</a>'
   uri              : # URL
   email            : "nadav@chaincode.com" 
 
