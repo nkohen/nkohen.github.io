@@ -19,8 +19,8 @@ Welcome to this week’s installment of the introductory Schnorr blog series! So
 * [Schnorr Signature Security: Part 1 – Schnorr ID Protocol](/blog/schnorr-id-protocol)
 * [Schnorr Signature Security: Part 2 – From IDs to Signatures](/blog/schnorr-id-to-signature)
 * [Scriptless Scripts – Adaptor Signatures](/blog/schnorr-applications-scriptless-scripts)
-* [Batch Verification](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-batch-verification/)
-* [Schnorr Threshold Sigantures](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-threshold-signatures/)
+* [Batch Verification](blog/schnorr-applications-batch-verification)
+* [Schnorr Threshold Signatures](/blog/schnorr-applications-threshold-signatures)
 * [Flexible Round-Optimized Schnorr Threshold – FROST](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-frost/)
 * [Schnorr Blind Signatures](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-blind-signatures/)
 * [Taproot Upgrade – Activating Schnorr](https://web.archive.org/web/20241113021719/https://suredbits.com/the-taproot-upgrade/)
@@ -67,17 +67,17 @@ $$X = X_1 + X_2 + \dots + X_n$$
 
 (where you should recall that public keys are points which can be added together to get new points). Now if we want to generate a signature for this shared key, we are going to have every party generate their own partial signature so that in the end, we should be able to add all partial signatures together like we did when discussing linearity in the first blog post to get a valid signature for the aggregate key. For a message, $$m$$, we let each party generate and share a partial nonce ($$R_1, R_2, \dots, R_n$$) (defining aggregate nonce $$R = R_1 + R_2 + \dots + R_n$$) and then each party can compute their partial signature
 
-$$s_i = k_i + H(X, R, m) * x_i$$
+$$s_i = k_i + H(X, R, m) \cdot x_i$$
 
 So that the aggregate signature is
 
-$$s = s_1 + s_2 + \dots + s_n = (k_1 + \dots + k_n) + H(X, R, m) * (x_1 + \dots + x_n)$$
+$$s = s_1 + s_2 + \dots + s_n = (k_1 + \dots + k_n) + H(X, R, m) \cdot (x_1 + \dots + x_n)$$
 
-$$= k + H(X, R, m) * x$$
+$$= k + H(X, R, m) \cdot x$$
 
 where $$k$$ and $$x$$ are the aggregate one-time-use private key and signing private key respectively. This multi-signature scheme generates a valid (regular) Schnorr signature $$(R, s)$$ of the message $$m$$ with the key $$X$$. Sadly this scheme is vulnerable to what is called Rogue Key Attack.
 
-Say that I convinced some other people to do this protocol with me and we each had our public keys, mine being $$X_1$$, I could lie and tell all of the other participants that my public key was actually $$X_1' = X_1 - X_2 - \dots - X_n$$ which is not actually a key I know the private key to. Then our aggregate key used on-chain would become $$X = X_1' + X_2 + \dots + X_n = X_1$$ which I do know the private key to! As such I could then unilaterally send those funds anywhere I wanted without the need for any cooperation. If you were able to get me to prove that I knew the private key to the public key I claimed was mine, this would stop my Rogue Key Attack but then I could do the same attack on the nonce values to gain control of the aggregate one-time-use private key $$k$$. This may not seem as bad but the moment we try to sign as a group, I will wait until I see everyone else’s partial signatures so that I can compute the aggregate signature $$s = k + H(X, R, m) * x$$ which would allow me to compute $$x$$ and once again I would be able to send all of the funds anywhere I wanted without cooperation.
+Say that I convinced some other people to do this protocol with me and we each had our public keys, mine being $$X_1$$, I could lie and tell all of the other participants that my public key was actually $$X_1' = X_1 - X_2 - \dots - X_n$$ which is not actually a key I know the private key to. Then our aggregate key used on-chain would become $$X = X_1' + X_2 + \dots + X_n = X_1$$ which I do know the private key to! As such I could then unilaterally send those funds anywhere I wanted without the need for any cooperation. If you were able to get me to prove that I knew the private key to the public key I claimed was mine, this would stop my Rogue Key Attack but then I could do the same attack on the nonce values to gain control of the aggregate one-time-use private key $$k$$. This may not seem as bad but the moment we try to sign as a group, I will wait until I see everyone else’s partial signatures so that I can compute the aggregate signature $$s = k + H(X, R, m) \cdot x$$ which would allow me to compute $$x$$ and once again I would be able to send all of the funds anywhere I wanted without cooperation.
 
 As such, in order to fix the above scheme, we need to make both the aggregate nonce value, $$R$$, and the aggregate public key, $$X$$, secure against Rogue Key Attacks. For our nonce values, one way to do this is to have all parties publicly commit to a partial nonce $$R_i$$ before revealing any of these values (this way no one can use knowledge of other partial nonces when computing their own partial nonce). Specifically we will require that every party broadcast the hash of their chosen nonce, $$t_i = H(R_i)$$, and only reveal the nonce $$R_i$$ once they have seen every other party’s commitment $$t_i$$.
 
@@ -87,17 +87,17 @@ $$a_i = H(<L> || X_i)$$
 
 and
 
-$$X = a_1 * X_1 + a_2 * X_2 + \dots + a_n * X_n$$
+$$X = a_1 \cdot X_1 + a_2 \cdot X_2 + \dots + a_n \cdot X_n$$
 
 so that it is now hard to compute some $$X_1'$$ from ($$X_1, X_2, \dots, X_n$$) such that $$X = X_1$$. This throws off the math a little bit since the sum of our partial signatures which yields ($$x_1 + \dots + x_n$$) as the coefficient on our signing hash no longer gives us $$x$$, the private key to $$X$$. Luckily, there is an easy tweak to our partial signatures that fixes this; let
 
-$$s_i = k_i + H(X, R, m) * a_i * x_i$$
+$$s_i = k_i + H(X, R, m) \cdot a_i \cdot x_i$$
 
 so that we reclaim our nice aggregate signature
 
-$$s = s_1 + s_2 + \dots + s_n = (k_1 + \dots + k_n) + H(X, R, m) * (a_1 * x_1 + \dots + a_n * x_n)$$
+$$s = s_1 + s_2 + \dots + s_n = (k_1 + \dots + k_n) + H(X, R, m) \cdot (a_1 \cdot x_1 + \dots + a_n \cdot x_n)$$
 
-$$= k + H(X, R, m) * x$$
+$$= k + H(X, R, m) \cdot x$$
 
 To recap, MuSig signing consists of three rounds:
 
