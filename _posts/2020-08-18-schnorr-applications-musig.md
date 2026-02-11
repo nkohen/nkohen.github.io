@@ -18,7 +18,7 @@ Welcome to this week’s installment of the introductory Schnorr blog series! So
 * [What are Schnorr Signatures – Introduction](/blog/introduction-to-schnorr-signatures)
 * [Schnorr Signature Security: Part 1 – Schnorr ID Protocol](/blog/schnorr-id-protocol)
 * [Schnorr Signature Security: Part 2 – From IDs to Signatures](/blog/schnorr-id-to-signature)
-* [Scriptless Scripts – Adaptor Signatures](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-scriptless-scripts/)
+* [Scriptless Scripts – Adaptor Signatures](/blog/schnorr-applications-scriptless-scripts)
 * [Batch Verification](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-batch-verification/)
 * [Schnorr Threshold Sigantures](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-threshold-signatures/)
 * [Flexible Round-Optimized Schnorr Threshold – FROST](https://web.archive.org/web/20241113021719/https://suredbits.com/schnorr-applications-frost/)
