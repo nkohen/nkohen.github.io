@@ -12,6 +12,8 @@ tags:
   - Threshold Signatures
 ---
 
+THIS BLOG POST IS NOT FINISHED YET!
+
 In cryptography, **secret sharing** is the process of splitting a secret into pieces, called secret shares, so that no individual device stores the original secret but some group of devices can collectively recover that secret. Classic examples of situations involving secret sharing include missile launch codes and shared custody in the corporate setting; in both cases multiple individuals' authorizations are required before any action can be taken. Recently, secret sharing has seen extensive use within multi-party computation (MPC) involving secret data, and private key management, where an individual or organization has cryptocurrency belonging to a secret key and they wish to split this key into $$n$$ key shares such that some subset of $$t$$ shares are required for using the key.
 
 In this post, we will be discussing two forms of secret sharing: Replicated Secret Sharing (RSS) and Shamir Secret Sharing (SSS). We will introduce the details of both of these schemes assuming relatively little background. We will also introduce a process for converting RSS shares into SSS shares that can be employed to construct a scheme known as Pseudorandom Secret Sharing (PSS) in which a single setup leads to an arbitrary number of secure deterministic SSS instantiations. Finally, we will see these constructions in action in the threshold Schnorr signature scheme, [Arctic](https://eprint.iacr.org/2024/466).
