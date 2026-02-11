@@ -27,8 +27,8 @@ While this blog series will talk about Schnorr signatures quite generally, most 
 * [Scriptless Scripts – Adaptor Signatures](/blog/schnorr-applications-scriptless-scripts)
 * [Batch Verification](blog/schnorr-applications-batch-verification)
 * [Schnorr Threshold Signatures](/blog/schnorr-applications-threshold-signatures)
-* [Flexible Round-Optimized Schnorr Threshold – FROST](https://web.archive.org/web/20241113012850/https://suredbits.com/schnorr-applications-frost/)
-* [Schnorr Blind Signatures](https://web.archive.org/web/20241113012850/https://suredbits.com/schnorr-applications-blind-signatures/)
+* [Flexible Round-Optimized Schnorr Threshold – FROST](/blog/schnorr-applications-frost)
+* [Schnorr Blind Signatures](/blog/schnorr-applications-blind-signatures/)
 * [Taproot Upgrade – Activating Schnorr](https://web.archive.org/web/20241113012850/https://suredbits.com/the-taproot-upgrade/)
 
 ---
