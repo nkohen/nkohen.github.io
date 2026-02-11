@@ -6,6 +6,7 @@ permalink: /blog/stuckless-payments/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 
@@ -35,6 +36,6 @@ Not only can Alice now retry her payment to Carol along a new route, but she can
 
 Notice that Bob does not behave any differently here than he does in a normal lightning payment. Thus, this scheme does not require all nodes to support it, only the end nodes in each payment (and perhaps any nodes that might be needed to route the ACK and update messages).
 
-Another important note is that although a similar scheme can be done with payment hashes and pre-images, this would require Alice to know the pre-image of the payment hash from the beginning and so there would be no PoP. PoP is very important, not only because application layer code depends on it, but also because it can be used to make payments atomic with other actions, such as [information decryption](https://web.archive.org/web/20241113012850/https://suredbits.com/paid-apis/).
+Another important note is that although a similar scheme can be done with payment hashes and pre-images, this would require Alice to know the pre-image of the payment hash from the beginning and so there would be no PoP. PoP is very important, not only because application layer code depends on it, but also because it can be used to make payments atomic with other actions, such as [information decryption](/blog/paid-apis).
 
 This “Stuckless” Payments proposal is one of many proposals out there that rely on a Payment Point based Lightning Network. In our next post, we will continue this series by discussing another application: Escrow Contracts over Lightning!

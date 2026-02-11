@@ -6,6 +6,7 @@ permalink: /blog/updating-and-transferring-lightning-payments/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 

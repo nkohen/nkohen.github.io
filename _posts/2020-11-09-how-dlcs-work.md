@@ -6,6 +6,7 @@ permalink: /blog/how-dlcs-work/
 tags:
   - Bitcoin
   - DLCs
+  - Adaptor Signatures
 ---
 
 In our last Discreet Log Contract [post](/blog/what-is-a-dlc), we explored the problems faced by most existing smart contracts as well as what Discrete Log Contracts (DLCs) are at a high level. In this post we will detail what exactly what it takes to execute a DLC as well as the many benefits we reap for doing so.

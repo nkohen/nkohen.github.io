@@ -6,6 +6,7 @@ permalink: /blog/escrow-contracts/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 

@@ -23,7 +23,7 @@ In the [last post](/blog/schnorr-applications-threshold-signatures/) of this ser
 * [Batch Verification](blog/schnorr-applications-batch-verification)
 * [Schnorr Threshold Signatures](/blog/schnorr-applications-threshold-signatures)
 * [Schnorr Blind Signatures](/blog/schnorr-applications-blind-signatures/)
-* [Taproot Upgrade – Activating Schnorr](https://web.archive.org/web/20241113012850/https://suredbits.com/the-taproot-upgrade/)
+* [Taproot Upgrade – Activating Schnorr](/blog/taproot-upgrade)
 
 ---
 

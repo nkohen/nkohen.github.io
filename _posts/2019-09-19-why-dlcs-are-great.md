@@ -16,7 +16,7 @@ In previous posts, we discussed both what Discreet Log Contracts (DLCs) are and 
 
 ---
 
-Discreet Log Contracts are private and secure. Not only is the contract only known by the parties involved, but not even the oracle needs to know *anything* about its users. All they need to do is broadcast signatures and can even potentially monetize (see our post on [PAID APIs](https://web.archive.org/web/20241113012850/https://suredbits.com/paid-apis/)).
+Discreet Log Contracts are private and secure. Not only is the contract only known by the parties involved, but not even the oracle needs to know *anything* about its users. All they need to do is broadcast signatures and can even potentially monetize (see our post on [PAID APIs](/blog/paid-apis)).
 
 The public sees nothing that can be distinguished from simple payment activity, no information goes on-chain except for the payout. Not only do oracles stay oblivious of their users but there are additional built in protections in the DLC scheme against oracles lying.  We will address the security and trust model of DLCs further in our next post.
 

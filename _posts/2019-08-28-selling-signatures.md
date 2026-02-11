@@ -6,6 +6,7 @@ permalink: /blog/selling-signatures/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 
@@ -19,7 +20,7 @@ In our recent posts, we discussed all the benefits and features enabled by Payme
 
 ---
 
-As we have covered [previously](https://web.archive.org/web/20241113012850/https://suredbits.com/paid-apis/), the Lightning Network enables selling data with some minimal trust in the seller by ensuring that the data is received atomically with payment completion. This still requires trust in the seller because although the data is received if and only if the user pays, the user has no way of validating that they will receive the data that they expect – as opposed to some random garbage. This is fine for many applications such as paying an oracle for data.  But what about enabling payment in exchange for data in more adversarial contexts?
+As we have covered [previously](/blog/paid-apis/), the Lightning Network enables selling data with some minimal trust in the seller by ensuring that the data is received atomically with payment completion. This still requires trust in the seller because although the data is received if and only if the user pays, the user has no way of validating that they will receive the data that they expect – as opposed to some random garbage. This is fine for many applications such as paying an oracle for data.  But what about enabling payment in exchange for data in more adversarial contexts?
 
 This is where Payment Points come to the rescue. Since a point reveals some information about its underlying scalar, we are going to be able to do some validation. Whereas this is impossible with hashes since they destroy all information. 
 

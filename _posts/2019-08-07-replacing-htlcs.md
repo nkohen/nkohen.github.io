@@ -6,6 +6,7 @@ permalink: /blog/replacing-htlcs/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 

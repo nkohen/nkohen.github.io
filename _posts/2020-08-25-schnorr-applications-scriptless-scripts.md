@@ -24,7 +24,7 @@ In this post we continue our survey of Schnorr-enabled schemes and their applica
 * [Schnorr Threshold Signatures](/blog/schnorr-applications-threshold-signatures)
 * [Flexible Round-Optimized Schnorr Threshold – FROST](/blog/schnorr-applications-frost)
 * [Schnorr Blind Signatures](/blog/schnorr-applications-blind-signatures/)
-* [Taproot Upgrade – Activating Schnorr](https://web.archive.org/web/20241113021719/https://suredbits.com/the-taproot-upgrade/)
+* [Taproot Upgrade – Activating Schnorr](/blog/taproot-upgrade)
 
 ---
 
@@ -95,10 +95,10 @@ Now that we have constructed Adaptor Signatures, let’s do a brief survey of th
 
 We have also already discussed one use case which is a replacement for HTLCs often called PTLCs (Point Time Lock Contracts) which function similarly to HTLCs but where a scalar to a point is revealed rather than a pre-image to a hash. Aside from being more private and moving more of the contract execution off-chain, it turns out that PTLCs have immense benefits to the Lightning Network. So many, in fact that I’ve written two whole blog series on the topic!
 
-* [Payment Points Series 1](https://web.archive.org/web/20241113021719/https://suredbits.com/payment-points-part-1/)
-* [Payment Points Series 2](https://web.archive.org/web/20241113021719/https://suredbits.com/payment-points-monotone-access-structures/)
+* [Payment Points Series 1](/blog/replacing-htlcs)
+* [Payment Points Series 2](/blog/monotone-access-structures)
 
-Beyond PTLCs, another improvement to the lightning network can be made through the use of adaptor signatures, namely Unified State Lightning Channels. I wrote a detailed description of this idea in [this post](https://web.archive.org/web/20241113021719/https://suredbits.com/generalized-bitcoin-channels/) but the super high-level idea is to replace the current Lightning revocation mechanism which requires dual symmetric state between the two channel parties (where each side has to_local punishment clauses) to a unified state where it is still possible to detect who publishes an old state based on the signatures used on the transaction. This is done by providing channel counter-parties with adaptor signatures tweaked with secrets only they know, and that secret can then be used to lock the punishment mechanism without the need for dual states!
+Beyond PTLCs, another improvement to the lightning network can be made through the use of adaptor signatures, namely Unified State Lightning Channels. I wrote a detailed description of this idea in [this post](/blog/generalized-bitcoin-channels) but the super high-level idea is to replace the current Lightning revocation mechanism which requires dual symmetric state between the two channel parties (where each side has to_local punishment clauses) to a unified state where it is still possible to detect who publishes an old state based on the signatures used on the transaction. This is done by providing channel counter-parties with adaptor signatures tweaked with secrets only they know, and that secret can then be used to lock the punishment mechanism without the need for dual states!
 
 ---
 

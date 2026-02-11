@@ -23,7 +23,7 @@ In this post we will be discussing one final Schnorr scheme: Blind Signatures. A
 * [Batch Verification](blog/schnorr-applications-batch-verification)
 * [Schnorr Threshold Signatures](/blog/schnorr-applications-threshold-signatures)
 * [Flexible Round-Optimized Schnorr Threshold – FROST](/blog/schnorr-applications-frost)
-* [Taproot Upgrade – Activating Schnorr](https://web.archive.org/web/20241113012850/https://suredbits.com/the-taproot-upgrade/)
+* [Taproot Upgrade – Activating Schnorr](/blog/taproot-upgrade)
 
 ---
 
@@ -71,7 +71,7 @@ This solves our second problem of having tokens encode useful information, but h
 
 For example, a seller of a token could take a token (type_normal, amount, serial_number, server_signature) and reissue it with the server to two tokens: the buyer token, (type_buyer, buyer_secret, seller_secret, amount, new_serial_number, server_signature), and the seller token (type_seller, locktime, amount, new_serial_number, server_signature) with the same serial numbers. The seller could then give the buyer token to the buyer but withholding the seller_secret, as well as proving to the buyer that the seller token has an adequately large locktime.
 
-At this point the buyer can buy the seller_secret using Bitcoin (either on-chain or off-chain) with a [Point-Time-Lock Contract](https://web.archive.org/web/20241113012850/https://suredbits.com/payment-points-part-1/) (PTLC) and claim their token from the server. Otherwise, if the buyer does not do this, the seller can reclaim their token after the locktime using the seller token.
+At this point the buyer can buy the seller_secret using Bitcoin (either on-chain or off-chain) with a [Point-Time-Lock Contract](/blog/replacing-htlcs) (PTLC) and claim their token from the server. Otherwise, if the buyer does not do this, the seller can reclaim their token after the locktime using the seller token.
 
 I believe that these kinds of servers are superior (in pretty much every way) to using “blockchain” tokens in any setting requiring trust, such as for tokens issued by a server for things like games. Jonas Nick explored these applications [in this talk](https://diyhpl.us/wiki/transcripts/building-on-bitcoin/2018/blind-signatures-and-scriptless-scripts/) with [these slides](https://nickler.ninja/slides/2018-bob.pdf).
 
@@ -83,7 +83,7 @@ Another interesting use case for blind signatures is CoinSwap servers. As we dis
 
 Using blind signatures, it is possible to have a blind CoinSwap service where users can pay a small fee to perform CoinSwaps with the server without having the server able to track which outgoing payment corresponds to which incoming payment!
 
-The key idea that will become clear after looking at the mathematical details of Schnorr blind signatures is that just like regular Schnorr signatures, they support pre-committed nonce schemes. Specifically, once the server has given its nonce, and the client has generated its tweaks, the client is able to compute $$s \cdot G$$ where $$s$$ is derived from a blind signature of a known message. As discussed in our [PTLC series](https://web.archive.org/web/20241113012850/https://suredbits.com/payment-points-part-4-selling-signatures/), this enables atomic purchase of these signatures. This is accomplished by using $$s \cdot G$$ as an adaptor point in an adaptor signature which signs the user’s payment to the server. Atomic with claiming this payment, the server reveals $$s$$ to the user who can then unblind the signature and use it to claim the payment from the server to the client (after waiting some time to increase their anonymity set). In this way, assuming that all communication with the server is done anonymously (using TOR or Lightning or some other similar mechanism), the server will be unable to link its incoming and outgoing transactions, while providing users with valuable CoinSwaps.
+The key idea that will become clear after looking at the mathematical details of Schnorr blind signatures is that just like regular Schnorr signatures, they support pre-committed nonce schemes. Specifically, once the server has given its nonce, and the client has generated its tweaks, the client is able to compute $$s \cdot G$$ where $$s$$ is derived from a blind signature of a known message. As discussed in our [PTLC series](/blog/selling-signatures/), this enables atomic purchase of these signatures. This is accomplished by using $$s \cdot G$$ as an adaptor point in an adaptor signature which signs the user’s payment to the server. Atomic with claiming this payment, the server reveals $$s$$ to the user who can then unblind the signature and use it to claim the payment from the server to the client (after waiting some time to increase their anonymity set). In this way, assuming that all communication with the server is done anonymously (using TOR or Lightning or some other similar mechanism), the server will be unable to link its incoming and outgoing transactions, while providing users with valuable CoinSwaps.
 
 For an in-depth and detailed description of this scheme, I suggest you first read the subsequent section on Schnorr blind signatures and then check out [this document](https://github.com/ElementsProject/scriptless-scripts/blob/master/md/partially-blind-swap.md). I find it to be a really clever combination of MuSig, adaptor signatures and blind signatures all in one!
 

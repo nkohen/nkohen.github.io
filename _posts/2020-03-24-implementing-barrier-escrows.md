@@ -1,11 +1,12 @@
 ---
 title: 'Payment Points: Implementing Barrier Escrows'
 author: 'Nadav Kohen'
-date: 2020-03-10
+date: 2020-03-24
 permalink: /blog/implementing-barrier-escrows/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 
@@ -44,7 +45,7 @@ Now that we have a detailed idea of what a Barrier Escrow should be, let us disc
 
 ## Option 1: REST API
 
-This is the tried-and-true route of implementing a simple REST API with a simple call-and-response protocol with two endpoints for barrier-commit and barrier-reveal. This is certainly the simplest solution and can be implemented today (I plan on doing so in the near future). Note that to optimize privacy, users should be encouraged (or forced) to reach this endpoint using TOR or a similar protocol which hides the client from the service. Furthermore, we can anonymously compensate the Barrier Escrow API Server for their services using [lightning paywalls](https://web.archive.org/web/20241113012850/https://suredbits.com/paid-apis/) to protect the server from DoS attacks and to incentivize good behavior.
+This is the tried-and-true route of implementing a simple REST API with a simple call-and-response protocol with two endpoints for barrier-commit and barrier-reveal. This is certainly the simplest solution and can be implemented today (I plan on doing so in the near future). Note that to optimize privacy, users should be encouraged (or forced) to reach this endpoint using TOR or a similar protocol which hides the client from the service. Furthermore, we can anonymously compensate the Barrier Escrow API Server for their services using [lightning paywalls](/blog/paid-apis/) to protect the server from DoS attacks and to incentivize good behavior.
 
 ---
 

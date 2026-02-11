@@ -23,7 +23,7 @@ Welcome to this week’s installment of the introductory Schnorr blog series! So
 * [Schnorr Threshold Signatures](/blog/schnorr-applications-threshold-signatures)
 * [Flexible Round-Optimized Schnorr Threshold – FROST](/blog/schnorr-applications-frost)
 * [Schnorr Blind Signatures](/blog/schnorr-applications-blind-signatures/)
-* [Taproot Upgrade – Activating Schnorr](https://web.archive.org/web/20241113021719/https://suredbits.com/the-taproot-upgrade/)
+* [Taproot Upgrade – Activating Schnorr](/blog/taproot-upgrade)
 
 ---
 

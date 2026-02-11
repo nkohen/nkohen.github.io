@@ -1,11 +1,12 @@
 ---
 title: 'Payment Points: Barrier Escrows'
 author: 'Nadav Kohen'
-date: 2020-03-10
+date: 2020-03-17
 permalink: /blog/barrier-escrows/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 

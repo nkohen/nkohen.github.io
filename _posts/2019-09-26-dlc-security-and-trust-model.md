@@ -48,7 +48,7 @@ Lastly, perhaps the most powerful property of the DLC scheme is that oracles can
 
 Thus, we can see that in its fully mature form, a DLC involves distributing some soft version of trust among many oracles, all of whom remain oblivious to your contract and have a lot to lose should they attempt lying.
 
-Not only is lying punishable, but it should be noted that telling the truth is rewarded since oracle’s can be [anonymously paid](https://web.archive.org/web/20241113012850/https://suredbits.com/paid-apis/) for their services, making them sustainable to run without sacrificing privacy or trust.
+Not only is lying punishable, but it should be noted that telling the truth is rewarded since oracle’s can be [anonymously paid](/blog/paid-apis) for their services, making them sustainable to run without sacrificing privacy or trust.
 
 One last practical consideration that DLC users should have in mind is that you must take care when setting fees on CETs, since a fee that is too low can delay or even erase your ability to turstlessly (unilaterally) execute the DLC.
 

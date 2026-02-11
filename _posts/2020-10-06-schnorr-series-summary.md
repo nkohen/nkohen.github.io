@@ -21,7 +21,7 @@ Y’all asked for a high-level, no math, summary of the Schnorr Signature Series
 * [Schnorr Threshold Signatures](/blog/schnorr-applications-threshold-signatures)
 * [Flexible Round-Optimized Schnorr Threshold – FROST](/blog/schnorr-applications-frost)
 * [Schnorr Blind Signatures](/blog/schnorr-applications-blind-signatures/)
-* [Taproot Upgrade – Activating Schnorr](https://web.archive.org/web/20241113012850/https://suredbits.com/the-taproot-upgrade/)
+* [Taproot Upgrade – Activating Schnorr](/blog/taproot-upgrade)
 
 ---
 
@@ -79,7 +79,7 @@ Beyond provable security (under minimal assumptions), small size and simplicity,
 
 Schnorr signatures are easily composable. By this I mean that if you add two signatures of the same message together, you can get a valid Schnorr signature of that message which looks like it was signed by the public key equal to the sum of the two public keys of the original signers.
 
-For example, if a friend of mine and I wanted to put some bitcoin in a shared place (like a [Lightning channel](https://web.archive.org/web/20241113012850/https://suredbits.com/lightning-101-what-is-the-lightning-network/) or a [Discreet Log Contract](https://web.archive.org/web/20241113012850/https://suredbits.com/discreet-log-contracts-part-1-what-is-a-discreet-log-contract/)) today, we would have to use two public keys (one for each of us) and spending this bitcoin would require a signature from each of us. With Schnorr signatures however, we could add our two public keys together to get a single “shared” public key and send bitcoin to that! Then when we want to spend this bitcoin, we could each sign (off-chain) a transaction and then add our signatures together to get a valid signature for our shared public key.
+For example, if a friend of mine and I wanted to put some bitcoin in a shared place (like a [Lightning channel](https://web.archive.org/web/20241113012850/https://suredbits.com/lightning-101-what-is-the-lightning-network/) or a [Discreet Log Contract](/blog/what-is-a-dlc)) today, we would have to use two public keys (one for each of us) and spending this bitcoin would require a signature from each of us. With Schnorr signatures however, we could add our two public keys together to get a single “shared” public key and send bitcoin to that! Then when we want to spend this bitcoin, we could each sign (off-chain) a transaction and then add our signatures together to get a valid signature for our shared public key.
 
 This allows for increased privacy as multiple people owning and using bitcoin (be that multiple people in a business or multiple business with a shared fund, or some entirely different reason) is indistinguishable from the “normal” single person use-case.
 
@@ -113,7 +113,7 @@ There are tons of ways of using adaptor signatures, all consisting of clever cho
 
 My favorite idea is to use an adaptor point corresponding to an oracle’s signature of a real-world event, so that until a signature is broadcasted the adaptor signature cannot be decrypted which enables us to create (using only signatures) Bitcoin payments and contracts contingent on real-world events, these are called [Discreet Log Contracts or DLCs](/blog/what-is-a-dlc).
 
-Another one of my favorite uses of adaptor signatures is that they enable Point Time Lock Contracts (PTLCs) which are Bitcoin payments that are contingent on a (one-time use) private key being revealed to claim funds, this being the point-lock. Otherwise the funds are claimed after some timeout by the sending party, this being the time-lock. The Lightning Network currently uses a slightly different contract HTLCs which don’t use adaptor signatures, but PTLCs are to HTLCs much like Schnorr is to ECDSA (they are better, in like all the ways). If you want to learn more about PTLCs and all the cool things you can do with them, check out this entirely separate [series devoted entirely to PTLCs](https://web.archive.org/web/20241113012850/https://suredbits.com/payment-points-part-1/).
+Another one of my favorite uses of adaptor signatures is that they enable Point Time Lock Contracts (PTLCs) which are Bitcoin payments that are contingent on a (one-time use) private key being revealed to claim funds, this being the point-lock. Otherwise the funds are claimed after some timeout by the sending party, this being the time-lock. The Lightning Network currently uses a slightly different contract HTLCs which don’t use adaptor signatures, but PTLCs are to HTLCs much like Schnorr is to ECDSA (they are better, in like all the ways). If you want to learn more about PTLCs and all the cool things you can do with them, check out this entirely separate [series devoted entirely to PTLCs](/blog/replacing-htlcs).
 
 ---
 

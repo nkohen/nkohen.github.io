@@ -6,6 +6,7 @@ permalink: /blog/monotone-access-structures/
 tags:
   - Bitcoin
   - PTLCs
+  - Adaptor Signatures
   - Lightning
 ---
 
