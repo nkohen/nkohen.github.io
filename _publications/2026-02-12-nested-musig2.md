@@ -5,7 +5,7 @@ category: preprints
 permalink: /publication/2026-02-12-nested-musig2
 excerpt: 'In this paper, we provide a construction for recursively nesting MuSig2-aggregated signing keys within instances of MuSig2 and prove the security of this construction.'
 date: 2026-02-12
-venue: 'arXiv'
+venue: 'Cryptology ePrint Archive'
 paperurl: 'https://eprint.iacr.org/2026/223'
 ---
 
