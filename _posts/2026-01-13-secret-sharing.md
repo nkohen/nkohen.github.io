@@ -14,7 +14,7 @@ tags:
 
 THIS BLOG POST IS NOT FINISHED YET!
 
-In cryptography, **secret sharing** is the process of splitting a secret into pieces, called secret shares, so that no individual device stores the original secret but some group of devices can collectively recover that secret. Classic examples of situations involving secret sharing include missile launch codes and shared custody in the corporate setting; in both cases multiple individuals' authorizations are required before any action can be taken. Recently, secret sharing has seen extensive use within multi-party computation (MPC) involving secret data, and private key management, where an individual or organization has cryptocurrency belonging to a secret key and they wish to split this key into $$n$$ key shares such that some subset of $$t$$ shares are required for using the key.
+In cryptography, **secret sharing** is the process of splitting a secret into pieces, called secret shares, so that no individual device stores the original secret, but some group of devices can collectively recover that secret. Classic examples of situations involving secret sharing include missile launch codes and shared custody in the corporate setting; in both cases multiple individuals' authorizations are required before any action can be taken. Recently, secret sharing has seen extensive use within multi-party computation (MPC) involving secret data, and private key management, where an individual or organization has cryptocurrency belonging to a secret key and they wish to split this key into $$n$$ key shares such that some subset of $$t$$ shares are required for using the key.
 
 In this post, we will be discussing two forms of secret sharing: Replicated Secret Sharing (RSS) and Shamir Secret Sharing (SSS). We will introduce the details of both of these schemes assuming relatively little background. We will also introduce a process for converting RSS shares into SSS shares that can be employed to construct a scheme known as Pseudorandom Secret Sharing (PSS) in which a single setup leads to an arbitrary number of secure deterministic SSS instantiations. Finally, we will see these constructions in action in the threshold Schnorr signature scheme, [Arctic](https://eprint.iacr.org/2024/466).
 
@@ -25,6 +25,9 @@ In this post, we will be discussing two forms of secret sharing: Replicated Secr
 * [Lagrange Interpolation](/blog/some-secrets-shared/#lagrange-interpolation)
 * [Uniqueness of Polynomial Interpolation](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation)
 * [Replicated Secret Sharing](/blog/some-secrets-shared/#replicated-secret-sharing)
+* [Pseudorandom Secret Sharing](/blog/some-secrets-shared/#pseudorandom-secret-sharing)
+
+---
 
 ## 2-of-3 Secret Sharing Examples
 
@@ -32,7 +35,7 @@ Suppose we wish to split a secret, $$s$$, into $$n=3$$ pieces, $$(s_1, s_2, s_3)
 
 One approach is to begin by splitting up the secret into three shares that add up to $$s$$. For example, we could pick $$s_1$$ and $$s_2$$ randomly and then set $$s_3 = s - s_1 - s_2$$. This gives us three secret shares such that all three are required to recover our secret; knowing any two secret shares yields no information about $$s$$ since it is still equally likely to be any number. Next, we can turn this $$t=3$$ scheme into a $$t=2$$ scheme by making our secret shares collections of these pieces. Namely, we give Alice the set $$\{s_2, s_3\},$$ we give Bob the set $$\{s_1, s_3\},$$ and we give Carol the set $$\{s_1, s_2\}$$. No individual has any information about $$s$$, but if any two of them collaborate, they will collectively know all three summands!
 
-An alternative approach is to use the fact that any two points define an entire line. Thus, if we work in the standard 2-dimensional plane and pick one point to be $$(0, s)$$, and we pick a second point to have a random second coordinate, $$(1, s_1)$$, then these two points uniquely define a line on which must contain some points $$(2, s_2)$$ and $$(3, s_3)$$ for some values of $$s_2$$ and $$s_3$$. Once we have chosen $$s_1$$ at random there are even nice formulas for our other values that can be derived from very elementary means. For example, we know the slope of this line is $$\frac{s_1 - s}{1 - 0} = s_1 - s$$ so that
+An alternative approach is to use the fact that any two points define an entire line. Thus, if we work in the standard 2-dimensional plane and pick one point to be $$(0, s)$$, and we pick a second point to have a random second coordinate, $$(1, s_1)$$, then these two points uniquely define a line which must contain further points $$(2, s_2)$$ and $$(3, s_3)$$ for some values of $$s_2$$ and $$s_3$$. Once we have chosen $$s_1$$ at random there are even nice formulas for our other values that can be derived using very elementary means. For example, we know the slope of this line is $$\frac{s_1 - s}{1 - 0} = s_1 - s$$ so that
 
 $$
 s_2 = s_1 + (s_1 - s) = 2s_1 - s
@@ -48,9 +51,11 @@ $$
 
 Hence, if we give $$(1, s_1)$$ to Alice, $$(2, s_2)$$ to Bob, and $$(3, s_3)$$ to Carol then any two of them will be able to collaborate to compute the line going through their two points, and will be able to discover $$x$$ by computing the value of the second coordinate when the first coordinate is equal to $$0$$. Furthermore, no individual participant has any information at all about the value of $$s$$.
 
+---
+
 ## Shamir Secret Sharing
 
-Using lines as in our example above works great for any scheme where $$t=2$$ meaning that any two participants can learn the secret, but what if you wanted to do something similar to construct a scheme where $$t=3$$ participants must collaborate to recover the secret? As it turns out, there is a curve that is uniquely determined by any three of its points: a parabola! More generally, for any number $$t$$, a degree $$(t-1)$$ [polynomial](https://en.wikipedia.org/wiki/Polynomial) is a curve which is uniquely determined by any $t$ of its points. We justify this claim [below](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation). Furthermore, knowledge of any $$t-1$$ points yields no information about any other points on the curve assuming that the curve was generated randomly.
+Using lines, as in our example above, works great for any scheme where $$t=2$$ meaning that any two participants can compute the secret, but what if you wanted to do something similar to construct a scheme where $$t=3$$ participants must collaborate to recover the secret? As it turns out, there is a curve that is uniquely determined by any three of its points: a parabola! (Circles and planes also work, but they don't generalize as well). More generally, for any number $$t$$, a degree $$(t-1)$$ [polynomial](https://en.wikipedia.org/wiki/Polynomial) is a curve which is uniquely determined by any $$t$$ of its points. We justify this claim [below](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation). Furthermore, knowledge of any $$t-1$$ points yields no information about any other points on the curve assuming that the curve was generated randomly.
 
 In other words, if we want to do a $$t$$-of-$$n$$ secret sharing of $$s$$, we choose random values $$a_1, a_2,\ldots, a_{t-1}$$ and use these to define a polynomial
 
@@ -60,6 +65,8 @@ $$
 
 Because we set the constant term to $$s$$, we have that $$f(0) = s$$. Next, we set $$s_1 = f(1), s_2 = f(2), \ldots, s_n = f(n)$$ and distribute the values $$(1,s_1), (2, s_2), \ldots, (n, s_n)$$ to their respective parties. Finally, any $$t$$ parties can use their shares to reconstruct the polynomial $$f(x)$$, because it is determined by any $$t$$ of its points, and then they can compute $$s = f(0)$$. This scheme is called Shamir Secret Sharing (SSS) (TODO: foreshadow DKG/VSS). But how do we actually compute $$f(x)$$ from some set of $$t$$ points $$(x_1, y_1), (x_2, y_2), \ldots, (x_t, y_t)$$? The problem of computing a curve that fits a given set of points is known as *interpolation* and is discussed in the next section. For readers already familiar with the details of Lagrange interpolation, [skip ahead](/blog/some-secrets-shared/#replicated-secret-sharing).
 
+---
+
 ## Lagrange Interpolation
 
 Let's begin with the example of trying to compute a line (where $$t=2$$) given two points: $$(x_1, y_1)$$ and $$(x_2, y_2)$$. The slope of our line is $$\frac{y_2 - y_1}{x_2 - x_1}$$, and thus we can use the point $$(x_1, y_1)$$ along with this slope to write down the so-called point-slope form of the line:
@@ -68,7 +75,7 @@ $$
 y - y_1 = \left(\frac{y_2 - y_1}{x_2 - x_1}\right)(x - x_1).
 $$
 
-However, in its current form, this equation does not generalize particularly nicely to higher degree polynomials, so let us try to rewrite this equation with the goal of having more symmetry between how $$x_1$$ and how $$x_2$$ is used. After all, we could have just as easily used the other point for our point-slope form to get the equivalent line $$y - y_2 = \left(\frac{y_2 - y_1}{x_2 - x_1}\right)(x - x_2).$$ As a first step, we isolate $$y$$ and separate the $$x$$ terms from the $$y_1$$s and $$y_2$$s, and then we distribute and factor out $$y_1$$:
+However, in its current form, this equation does not generalize particularly nicely to higher degree polynomials, so let us try to rewrite this equation with the goal of having more symmetry between how $$x_1$$ and $$x_2$$ are used. After all, we could have just as easily used the other point for our point-slope form to get the equivalent line $$y - y_2 = \left(\frac{y_2 - y_1}{x_2 - x_1}\right)(x - x_2).$$ As a first step, we isolate $$y$$ and separate the $$x$$ terms from the $$y_1$$s and $$y_2$$s, and then we distribute and factor out $$y_1$$:
 
 $$
 \begin{align*}
@@ -139,15 +146,17 @@ where $$C = \{x_1,\ldots, x_t\}$$ is the set of $$x$$-coordinates/participant in
 
 This particular method of reconstructing a polynomial from its points is known as Lagrange interpolation and the "building blocks" that we used, $$L_i(x)$$, are known as [Lagrange polynomials](https://en.wikipedia.org/wiki/Lagrange_polynomial).
 
+---
+
 ## Uniqueness of Polynomial Interpolation
 
 While it is completely sufficient for all practical purposes to simply assume/believe/trust that $$t$$ points uniquely define a degree $$(t-1)$$ polynomial, most arguments for why this must be the case are not particularly difficult (though they can be a bit dense), so I've included one such argument here just for fun. No content from this section is required to [read the rest of this post](/blog/some-secrets-shared/#replicated-secret-sharing).
 
 We wish to prove the claim that if $$f(x)$$ and $$g(x)$$ are two polynomials of degree $$t-1$$, and $$f(x_i) = g(x_i)$$ for $$t$$ distinct values of $$x_i$$, then $$f(x) = g(x)$$ as polynomials. The difference of two polynomials of degree $$(t-1)$$ is of degree at most $$(t-1)$$, so that $$h(x) = f(x) - g(x)$$ is a polynomial of degree at most $$(t-1)$$ such that its output is $$0$$ when evaluated at any of the $$t$$ input values $$x_i$$. Such an input that causes a function to be evaluated to zero is called a *root* of that function. Therefore, it is sufficient to prove that if a degree $$(t-1)$$ polynomial, $$h(x)$$, has $$t$$ distinct roots, then $$h(x) = 0$$ (in our case this would imply that $$f(x) - g(x) = 0\Rightarrow f(x) = g(x)$$).
 
-Equivalently, we can show that if $$h(x)$$ is a non-zero polynomial of degree at most $$(t-1)$$, then it can have at most $$(t-1)$$ roots (as this implies that having more roots makes $$h(x)$$ into the zero function). If $$t = 1$$, then $$h(x)$$ is a polynomial of degree at most $$t-1 = 1-1 = 0$$ so that $$h(x)$$ is a constant non-zero value (since we are assuming that $$h(x)\neq 0$$) and thus it has no roots. If $$t = 2$$, then $$h(x)$$ is of degree at most $$t-1 = 2-1 = 1$$ making it a non-zero line or a non-zero constant function, both of which have at most $$1$$ roots. We now continue our argument using [induction](https://en.wikipedia.org/wiki/Mathematical_induction).
+Equivalently, we can show that if $$h(x)$$ is a non-zero polynomial of degree at most $$(t-1)$$, then it can have at most $$(t-1)$$ roots (as this implies that having more roots makes $$h(x)$$ into the zero function). If $$t = 1$$, then $$h(x)$$ is a polynomial of degree at most $$t-1 = 1-1 = 0$$ so that $$h(x)$$ is a constant non-zero value and thus it has no roots (since we are assuming that $$h(x)$$ is not the $$0$$ function). If $$t = 2$$, then $$h(x)$$ is of degree at most $$t-1 = 2-1 = 1$$ making it a non-zero line or a non-zero constant function, both of which have at most $$1$$ roots. We now continue our argument using [induction](https://en.wikipedia.org/wiki/Mathematical_induction). (If you aren't familiar with induction but are familiar with recursion in programming, it is essentially the name for recursion when used in a formal argument such as this one).
 
-Suppose every non-zero polynomial of degree at most $$(n-1)$$ has at most $$(n-1)$$ roots; we wish to show that this implies that every non-zero polynomial of degree $$n$$ has at most $$n$$ roots. Let $$h(x)$$ be an arbitrary non-zero degree $$n$$ polynomial. If $$h(x)$$ has no roots, then it has fewer than $$n$$ roots and we are done. Otherwise, there is some value $$a$$ such that $$h(a) = 0$$. Consider the polynomial, $$p(x) = h(x + a)$$, that is the result of plugging in $$(x+a)$$ for $$x$$. This is a new polynomial of degree at most $$n$$. Furthermore, we have that $$p(0) = h(0 + a) = h(a) = 0$$ from which we can conclude that every term of $$q(x)$$ (in its expanded form) is divisible by $$x$$ so that we can factor this out to get that $$p(x) = x\cdot q(x)$$ for some polynomial $$q(x)$$ of degree at most $$(n-1)$$. Finally, we can use the fact that
+Suppose every non-zero polynomial of degree at most $$(n-1)$$ has at most $$(n-1)$$ roots; we wish to show that this implies that every non-zero polynomial of degree $$n$$ has at most $$n$$ roots. Let $$h(x)$$ be an arbitrary non-zero degree $$n$$ polynomial. If $$h(x)$$ has no roots, then it has fewer than $$n$$ roots and we are done. Otherwise, there is some value $$a$$ such that $$h(a) = 0$$. Consider the polynomial, $$p(x) = h(x + a)$$, that is the result of plugging in $$(x+a)$$ for $$x$$. This is a new polynomial of degree at most $$n$$. Furthermore, we have that $$p(0) = h(0 + a) = h(a) = 0$$ from which we can conclude that every term of $$p(x)$$ (in its expanded form) is divisible by $$x$$ so that we can factor this out to get that $$p(x) = x\cdot q(x)$$ for some polynomial $$q(x)$$ of degree at most $$(n-1)$$. Finally, we can use the fact that
 
 $$
 h(x) = h((x-a) + a) = p(x-a) = (x-a)\cdot q(x-a)
@@ -156,6 +165,8 @@ $$
 to see that $$h(x)$$ is equal to $$(x-a)$$ times a polynomial of degree at most $$(n-1)$$, which must have at most $$(n-1)$$ roots by our inductive hypothesis, so that we can conclude that $$h(x)$$ has at most $$n$$ roots, as desired.
 
 To summarize, we have shown that if a polynomial, $$h(x)$$, has a root, $$a$$, then $$h(x) = (x-a)\cdot q(x)$$ for some polynomial, $$q(x)$$, of lesser degree; hence, by induction, it is clear to see that all non-zero polynomials of degree at most $$(t-1)$$ have at most $$(t-1)$$ roots, and thus if $$h(x) = f(x) - g(x)$$ has $$t$$ roots (since $$f(x)$$ and $$g(x)$$ agree on $$t$$ distinct values), we can conclude that $$h(x) = f(x) - g(x) = 0\Rightarrow f(x) = g(x)$$.
+
+---
 
 ## Replicated Secret Sharing
 
@@ -184,4 +195,32 @@ You may notice that while a $$2$$-of-$$3$$ replicated secret sharing (RSS) schem
 
 Thus, despite the simplicity of RSS, it is no big surprise that SSS has become the default method of secret sharing. However, in many practical applications, such as private key management, the number of devices involved ($$n$$) is relatively small. For example, even if $$10$$ devices are used, then in the worst case we require $$\binom{10}{5} = 252$$ summands, $$\binom{9}{5} = 126$$ of which are known to each device so that if each secret number is $$32$$ bytes, then each party only needs to store approximately $$4$$ kilobytes of data. Meanwhile, the worst case for $$20$$ devices requires each device to store approximately $$3$$ megabytes of data. It is clear that RSS scales poorly to large numbers of devices, but it is still perfectly practical to use for relatively small numbers of signers such as these.
 
-One benefit that RSS has, which SSS does not, is that if we are sharing many randomly generated secrets, then rather than setting up a new sharing for each secret we can instead perform a RSS setup a single time and treat each of the secret summands as a key to a pseudo-random function (PRF). Subsequently, we can non-interactively generate an unlimited number of RSS-shared secrets deterministically. TODO: Unpack this.
+---
+
+## Pseudorandom Secret Sharing
+
+One benefit that RSS has, which SSS does not, is that if we are sharing many randomly generated secrets, then rather than setting up a new sharing for each secret we can instead perform a RSS setup a single time and treat each of the secret summands as a key (a.k.a seed) to a [pseudorandom function (PRF)](https://en.wikipedia.org/wiki/Pseudorandom_function_family). Subsequently, we can non-interactively generate an unlimited number of RSS-shared secrets deterministically. Specifically, one way to do this is to fix a [cryptographic hash function](https://en.wikipedia.org/wiki/Cryptographic_hash_function), $$H$$, then given some session identifier, $$sid$$, and a secret seed, $$\phi_i$$, we can compute the new secret $$\alpha_i = H(\phi_i\vert\vert sid)$$. If each party computes $$\alpha_i$$ for every $$\phi_i$$ that they know, then they can use these new values as their RSS shares of the pseudorandom secret $$s_{sid} = \sum_i \alpha_i$$. Notice that no communication is required between the participants to set up this new RSS of the secret $$s_{sid}$$! Each participant only does local computation on values they already have from the initial replicated PRF seed setup. The key point is that because PRFs are deterministic for a fixed seed, parties are able to compute the replicated values $$\alpha_i$$ without communicating with one another so long as they know the replicated secret $$\phi_i$$.
+
+This kind of scheme is not possible to create based on an initial Shamir Secret Sharing setup because each participant knows a point on a polynomial curve, which cannot be used as a seed for a PRF because the outputs from such a setup will not lie on the same degree $$(t-1)$$ polynomial. In fact, if each of the $$n$$ participants have some PRF that is seeded randomly using any means and without replication, and they treat the outputs of these PRFs as Shamir shares, then with overwhelming probability the points that are output will not lie on any polynomial of degree less than $$n-1$$ (where $$n$$ is the number of points). The issue is that Shamir shares are correlated because any $$t$$ points determine all $$n$$ points. This is not a problem for RSS because secret summands are not correlated.
+
+However, the primary downside of RSS when compared to SSS is the storage and communication complexity. In SSS, you only need to keep track of a single secret. Furthermore, when you are using this secret as part of a multi-party computation, such as when you are computing a partial signature, then you only need to compute a single partial signature. Meanwhile, with RSS you may have to compute and communicate the partial signature for every share you know. There is no way to reduce the storage requirements of RSS, but it is possible to convert RSS shares (which are made up of many secret summands) into SSS shares (which are a single secret point) without introducing any communication! This means that for the cost of a single RSS initial setup, you can deterministically generate arbitrarily many pseudorandom SSS-distributed secrets without any further communication by creating RSS secrets and then converting the resulting RSS shares into SSS shares.
+
+The key idea behind converting an RSS-distributed secret into a SSS-distributed secret is that we must define a polynomial, $$f_{sid}(x)$$, of degree $$(t-1)$$ such that $$f_{sid}(0) = s_{sid} = \sum_i \alpha_i = \sum_i H(\phi_i, sid)$$ and for every $$k\in\{1,\ldots, n\}$$, $$f_{sid}(k)$$ is a value that can be computed by participant $$k$$, that is, $$f_{sid}(k)$$ can be computed using only the secret values $$\phi_i$$ that participant $$k$$ has access to. Define $$L_{a_i}(x) = \prod_{j\in a_i}\frac{j-x}{j}$$, which is the unique degree $$\vert a_i\vert = t-1$$ polynomial such that $$L_{a_i}(0) = 1$$ and $$L_{a_i}(k) = 0$$ for all $$k\in a_i$$. If we let
+
+$$f_{sid}(x) = \sum_i H(\phi_i, sid)\cdot L_{a_i}(x),$$
+
+then this is a degree $$(t-1)$$ polynomial such that
+
+$$f_{sid}(0) = \sum_i H(\phi_i, sid)\cdot L_{a_i}(0) = \sum_i H(\phi_i, sid) = s_{sid},$$
+
+and for every $$k\in\{1,\ldots,n\}$$,
+
+$$f_{sid}(k) = \sum_i H(\phi_i, sid)\cdot L_{a_i}(k) = \sum_{i\text{ with }k\notin a_i} H(\phi_i, sid)\cdot L_{a_i}(k).$$
+
+Notably, one does not need to know $$\phi_i$$ for any $$i$$ such that $$k\in a_i$$ in order to compute $$f_{sid}(k)$$ since $$L_{a_i}(k) = 0$$ for all $$i$$ such that $$k\in a_i$$. Thus, participant $$k$$ can compute $$f_{sid}(k)$$ locally from only the secrets they know because they know exactly all $$\phi_i$$ such that $$k\notin a_i$$.
+
+Therefore, after a single RSS setup, we can compute arbitrarily many Shamir secret sharings without any further communication by having each party compute there secret share for session identifier, $$sid$$, as $$s_{sid,k} = \sum_{i\text{ with }k\notin a_i} H(\phi_i, sid)\cdot L_{a_i}(k).$$ Also note that the values $$L_{a_i}(k) = \prod_{j\in a_i}\frac{j-k}{j}$$ do not change between sessions so that they can be cached for efficiency.
+
+This scheme is called Pseudorandom Secret Sharing (PSS) and was first developed by [Cramer et. al. in this paper](https://scispace.com/pdf/share-conversion-pseudorandom-secret-sharing-and-35akwluifi.pdf) in 2004.
+
+TODO: Talk about DKGs for SSS and RSS to show that one PSS/RSS DKG can be preferable to many SSS DKGs. Discuss recovery "in the exponent." Discuss VPSS verifiability in the honest-majority setting (RSS then PSS). Showcase Arctic as a use case for all that we have discussed.
