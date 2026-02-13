@@ -26,6 +26,9 @@ In this post, we will be discussing two forms of secret sharing: Replicated Secr
 * [Uniqueness of Polynomial Interpolation](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation)
 * [Replicated Secret Sharing](/blog/some-secrets-shared/#replicated-secret-sharing)
 * [Pseudorandom Secret Sharing](/blog/some-secrets-shared/#pseudorandom-secret-sharing)
+* [Distributed Key Generation](/blog/some-secrets-shared/#distributed-key-generation)
+* [Recovery in the Exponent](/blog/some-secrets-shared/#recovery-in-the-exponent)
+* [Verifiable Pseudorandom Secret Sharing](/blog/some-secrets-shared/#verifiable-pseudorandom-secret-sharing)
 
 ---
 
@@ -221,6 +224,39 @@ Notably, one does not need to know $$\phi_i$$ for any $$i$$ such that $$k\in a_i
 
 Therefore, after a single RSS setup, we can compute arbitrarily many Shamir secret sharings without any further communication by having each party compute there secret share for session identifier, $$sid$$, as $$s_{sid,k} = \sum_{i\text{ with }k\notin a_i} H(\phi_i, sid)\cdot L_{a_i}(k).$$ Also note that the values $$L_{a_i}(k) = \prod_{j\in a_i}\frac{j-k}{j}$$ do not change between sessions so that they can be cached for efficiency.
 
-This scheme is called Pseudorandom Secret Sharing (PSS) and was first developed by [Cramer et. al. in this paper](https://scispace.com/pdf/share-conversion-pseudorandom-secret-sharing-and-35akwluifi.pdf) in 2004.
+This scheme is called Pseudorandom Secret Sharing (PSS) and was first developed by [Cramer et. al. in this paper](https://scispace.com/pdf/share-conversion-pseudorandom-secret-sharing-and-35akwluifi.pdf) in 2004. PSS basically allows protocols to have all the benefits of repeated RSS use with only a single setup and communication complexity that is equivalent to Shamir-based schemes after setup (because of the share conversion). Furthermore, the security of PSS-based schemes tends to be relatively simple to reason about by simulation arguments reducing to pure RSS-based variants (which are inefficient but very simple to reason about). Basically the security argument usually has three phases:
+1. Reduce the security of the PSS-based scheme to the security of that scheme using pure RSS.
+2. Reduce the security of the RSS-based scheme to the security of the non-threshold version where all participant's cooperation is required and the adversary controls all but one participant.
+3. Prove the security of the non-threshold version.
 
-TODO: Talk about DKGs for SSS and RSS to show that one PSS/RSS DKG can be preferable to many SSS DKGs. Discuss recovery "in the exponent." Discuss VPSS verifiability in the honest-majority setting (RSS then PSS). Showcase Arctic as a use case for all that we have discussed.
+For example, this is how [Iceberg](https://github.com/nkohen/Iceberg/tree/master) reduces its security to that of [Nested MuSig2](/publication/2026-02-12-nested-musig2) (this paper is in preparation).
+
+---
+
+## Distributed Key Generation
+
+So far we have been discussing the setup of our secret sharing schemes in terms of a trusted dealer who knows the underlying aggregate secret and splits it into shares and deals shares out to participants. In practice, we usually want to replace a trusted dealer with a trustless distributed key generation (DKG) protocol.
+
+DKGs for RSS are extremely simple! For each secret summand, one party who is meant to know that secret (designated in any way, for example, the lowest index party) generates it the secret at random and shares it with all other participants who need to know that secret. Then, participants verify that they have all received the same secret. For example, this verification check can be accomplished by having each participant respond to the party that generated the secret with a signature of that secret, and then having the generator collect all of these signatures and send the entire collection to each party for batch verification.
+
+So far in this blog post, we have not discussed any public key cryptography directly, as we have only been discussing secret values with no relation to "public keys." The remainder of this post is entirely about the relation of our secrets to public keys. In particular, we will assume familiarity with [cyclic groups](https://en.wikipedia.org/wiki/Cyclic_group) and their use in [discrete log](https://en.wikipedia.org/wiki/Discrete_logarithm)-based public key cryptography.
+
+In 1987, Paul Feldman [published](https://www.cs.umd.edu/~gasarch/TOPICS/secretsharing/feldmanVSS.pdf) a verifiable secret sharing (VSS) scheme that allows an untrusted dealer to perform a SSS setup. As in the trusted setup we [described above](/blog/some-secrets-shared/#shamir-secret-sharing), the dealer chooses a polynomial $$f(x) = s + a_1x + a_2x^2 + \cdots + a_{t-1}x^{t-1},$$ where the values $$a_1,\ldots, a_{t-1}$$ are chosen uniformly at random, and the dealer distributes the values $$s_i = f(i)$$ to participant $$i$$. Additionally, the dealer gives every participant the list of values $$P_0 = g^s, P_1 = g^{a_1},\ldots, P_{t-1} = g^{a_{t-1}}$$, which are the public keys if we treat the coefficients of $$f(x)$$ as private keys. Each participant, $$i$$, can then verify their secret share "in the exponent" by checking that
+
+$$g^{s_i} = P_0P_1^iP_2^{i^2}\cdots P_{t-1}^{i^{t-1}} = g^{s}(g^{a_1})^i(g^{a_2})^{i^2}\cdots(g^{a_{t-1}})^{i^{t-1}} = g^{s + a_1i + \cdots + a_{t-1}i^{t-1}} = g^{f(i)}.$$
+
+If no party complains that their share is invalid, then the setup is a success. This VSS can be transformed into a DKG by having each participant generate a uniformly random secret, and then act as the dealer to all other participants. The result is that every party holds a Shamir share of every participant's secret. Assuming that each participant has a fixed index meaning that they know the value of each polynomial at a fixed x-coordinate, then every participant can add up all of their shares and the result is a share on the sum of all of the polynomials, which is itself a polynomial. Essentially, each party generates a secret summand and we let the aggregate DKG secret be the sum of all of these values, then each participant acts as an untrusted dealer for their summand, and finally everyone adds their summand shares together to get a single share for the aggregate secret.
+
+As you may have noticed, SSS DKGs are quite a bit more involved than RSS DKGs, so that if you don't have too many participants (ensuring RSS is practical) and you need to do many SSS DKGs, it may be preferable to use PSS, which yields arbitrarily many SSS DKGs for the cost of a single RSS DKG.
+
+---
+
+## Recovery in the Exponent
+
+TODO: Discuss recovery "in the exponent."
+
+---
+
+## Verifiable Pseudorandom Secret Sharing
+
+TODO: Discuss VPSS verifiability in the honest-majority setting (RSS then PSS). Mention Arctic as a use case for all that we have discussed.
