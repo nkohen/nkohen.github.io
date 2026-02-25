@@ -253,10 +253,48 @@ As you may have noticed, SSS DKGs are quite a bit more involved than RSS DKGs, s
 
 ## Recovery in the Exponent
 
-TODO: Discuss recovery "in the exponent."
+Suppose you have an RSS secret, $$s$$, that has already been dealt among some participants (either directly or as the result of Pseudorandom Secret Sharing). Then it is quite simple to compute the public key $$g^s$$ without recovering $$s$$ by having each party broadcast the public keys of all of their secret summands, verifying that all parties agree, and then taking a product of each (deduplicated) factor. In other words, if
+
+$$s_1 + s_2 + \cdots + s_\gamma = s,$$
+
+then
+
+$$g^{s_1}g^{s_2}\cdots g^{s_\gamma} = g^{s_1 + s_2 + \cdots + s_\gamma} = g^s.$$
+
+Similarly, if $$s$$ has been dealt using SSS (either directly or as a result of Pseudorandom Secret Sharing), then so long as all parties not only know their share $$s_i = f(i)$$, but also know the public keys $$P_j = g^{s_j}$$ for all values $$j$$, any $$t$$ of them can compute $$g^s$$ [by using interpolation](/blog/some-secrets-shared/#lagrange-interpolation) "in the exponent" like so:
+
+$$P_{i_1}^{\lambda_1}P_{i_2}^{\lambda_2}\cdots P_{i_t}^{\lambda_t} = g^{f(i_1)\lambda_1 + f(i_2)\lambda_2 + \cdots + f(i_t)\lambda_t} = g^s,$$
+
+where $$C = \{i_1,\ldots, i_t\}$$ and $$\lambda_j = L_{i_j}(0) = \prod_{i_k\in C\setminus\{i_j\}}\frac{i_k}{i_k - i_j}.$$
+
+However, it is not necessarily simple to just "also know the public keys $$P_j$$" because we do not know the underlying private keys (party $$j$$'s share) and we may not trust party $$j$$. If  [Feldman's VSS-based DKG](/blog/some-secrets-shared/#distributed-key-generation) was used to set up the SSS, then we can compute these values trustlessly from the intermediate commitments. In the next section, we describe how we can verify supposed $$P_j$$ values in the context of PSS.
 
 ---
 
 ## Verifiable Pseudorandom Secret Sharing
 
-TODO: Discuss VPSS verifiability in the honest-majority setting (RSS then PSS). Mention Arctic as a use case for all that we have discussed.
+For a fixed $$sid$$, recall that party $$k$$ locally computes its share as
+
+$$s_k = f_{sid}(k) = \sum_{i\text{ with }k\notin a_i} H(\phi_i, sid)\cdot L_{a_i}(k).$$
+
+The key idea is that we want to come up with some kind of computation that could be used to check that some set of $$s_k$$ values are valid that can be carried out "in the exponent." Namely, if we are given the values $$s_{i_1},\ldots, s_{i_{2t-1}}$$ that are allegedly equal to $$f(i_1),\ldots, f(i_{2t-1})$$, then we should be able to [use interpolation](/blog/some-secrets-shared/#lagrange-interpolation) to compute $$f$$ from these values. In particular, we can check the degree of $$f$$, which should be equal to $$t-1$$.
+
+**If we assume that there are at most $$t-1$$ dishonest parties, so that there is an _honest majority_**, then any collection of at least $$2t-1$$ participants contains at least $$t$$ honest participants. This means that we can recover the true value of $$f$$ through interpolation from these parties alone. But what happens if we add more points to our interpolation? If those points are correctly computed, i.e., $$s_i = f(i)$$, then the interpolation will still output the same polynomial $$f$$. However, if a dishonest party uses a value $$s_i\neq f(i)$$, then interpolation of honest points alongside the point $$(i, s_i)$$ will result in a polynomial of degree higher than $$t-1$$. This is because $$f$$ is the unique degree $$(t-1)$$ polynomial going through the $$t$$ honest points, and adding any points not on that polynomial requires interpolation through more than $$t$$ points and will result in a higher-degree polynomial. Therefore, if we make an honest majority assumption, then computing the degree of the polynomial interpolated through at least $$2t-1$$ shares is sufficient to verify the correctness of those shares. Note that interpolating using $$m\geq 2t-1$$ points results in a polynomial of degree at most $$m-1$$, and we are simply verifying that the coefficients on $$x^t, x^{t+1}, \ldots, x^{m-1}$$ are all $$0$$.
+
+Now we translate this computation "to the exponent." Given a set of values $$\{D_j\}_{j\in C}$$ such that $$D_j$$ is supposedly equal to $$g^{s_j}$$, where $$s_j = f(j)$$, we want to compute $$g^{f(x)} = g^{\sum_{j\in C}s_j\cdot L_{C, j}(x)}$$, where $$L_{C,j}(x) = \prod_{i\in C\setminus\{j\}}\frac{i-x}{i-j}$$. If we use $$\Lambda_{j,k}^C$$ to denote the degree $$k$$ coefficient of $$L_{C,j}(x)$$ when it is expanded so that
+
+$$L_{C,j}(x) = \sum_{k=0}^{\vert C\vert - 1}\Lambda_{j,k}^Cx^k,$$
+
+then we can collect like terms to get
+
+$$f(x) = \sum_{j\in C}s_j\cdot L_{C,j}(x) = \sum_{k=0}^{\vert C\vert - 1}\left(\sum_{j\in C} s_j\cdot \Lambda_{j,k}^C\right)x^k.$$
+
+Therefore, if we let $$f(x)$$ be the result of interpolating using the values $$\{s_j\}_{j\in C}$$, then
+
+$$g^{f(x)} = \prod_{k=0}^{\vert C\vert - 1}\prod_{j\in C}(g^{s_j\cdot \Lambda_{j,k}^C})^{x^k} = \prod_{k=0}^{\vert C\vert - 1}\prod_{j\in C}(D_j^{\Lambda_{j,k}^C})^{x^k}$$
+
+is the result of "interpolating in the exponent" using $$\{D_j\}_{j\in C}$$. Therefore, in the honest-majority setting, it is sufficient to verify that $$\prod_{j\in C}D_j^{\Lambda_{j,k}^C} = g^0 = \text{Id}_{\mathbb{G}}$$ for all $$k\geq t$$. If this is the case, then all of the values $$\{D_j\}_{j\in C}$$ must be the public keys of secrets lying on the same degree $$t-1$$ polynomial, which must be the correct polynomial by the honest majority assumption (which guarantees that at least $$t$$ of the inputs to interpolation are honest).
+
+Thus, in the honest-majority setting, we now have Verifiable Pseudorandom Secret Sharing (VPSS)! With VPSS we can not only get infinite free SSS secrets from a single RSS DKG, but we can also verify participant shares and thus we can verifiably compute the aggregate public keys (i.e. perform [recovery in the exponent](/blog/some-secrets-shared/#recovery-in-the-exponent)) for the underlying distributed secrets without recovering those secrets directly.
+
+TODO: Note about computing $$\Lambda_{j,k}^C$$, Linearity, ZKPs to remove the honest majority requirement, Application to nonce generation in Schnorr threshold signatures, Clean things up.
