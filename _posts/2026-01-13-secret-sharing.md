@@ -29,6 +29,9 @@ In this post, we will be discussing two forms of secret sharing: Replicated Secr
 * [Distributed Key Generation](/blog/some-secrets-shared/#distributed-key-generation)
 * [Recovery in the Exponent](/blog/some-secrets-shared/#recovery-in-the-exponent)
 * [Verifiable Pseudorandom Secret Sharing](/blog/some-secrets-shared/#verifiable-pseudorandom-secret-sharing)
+  * [A Note on Computing $$\Lambda_{j,k}^C$$](/blog/some-secrets-shared/#a-note-on-computing-lambda_jkc)
+* [Application to Threshold Schnorr Signatures](/blog/some-secrets-shared/#application-to-threshold-schnorr-signatures)
+* [Conclusion](/blog/some-secrets-shared/#conclusion)
 
 ---
 
@@ -54,6 +57,22 @@ $$
 
 Hence, if we give $$(1, s_1)$$ to Alice, $$(2, s_2)$$ to Bob, and $$(3, s_3)$$ to Carol then any two of them will be able to collaborate to compute the line going through their two points, and will be able to discover $$x$$ by computing the value of the second coordinate when the first coordinate is equal to $$0$$. Furthermore, no individual participant has any information at all about the value of $$s$$.
 
+Notice that in either method of splitting up our secret, we have the following nice properties:
+* If everyone multiplies their secret share by some constant $$c$$, then the result is that everyone has a share for $$c$$ times the original secret value.
+* If we perform the secret sharing twice using the same indices for two different secrets, $$s_1$$ and $$s_2$$, and if each participant adds their secret shares together, then the result is that everyone has a share for the sum of the secrets, $$s_1 + s_2$$.
+
+Together, these properties are referred to as "linearity."
+
+The linearity of our first method is very easy to see, because each party simply holds a pair of summands that we add together, and clearly,
+
+$$c\cdot s = c\cdot (s_1 + s_2 + s_3) = c\cdot s_1 + c\cdot s_2 + c\cdot s_3,\text{ and}$$
+
+$$s + s' = (s_1 + s_2 + s_3) + (s_1' + s_2' + s_3') = (s_1 + s_1') + (s_2 + s_2') + (s_3 + s_3').$$
+
+The linearity of our second method (using lines) is only slightly harder to see. The key idea is that each line can be represented by an equation $$y = L(x)$$ for some function $$L$$ such that $$L(0) = s$$, and our shares $$s_1, s_2, s_3$$ are equal to the evaluations $$L(1), L(2), L(3)$$. Therefore, if we have two lines $$y = L_1(x)$$ and $$y = L_2(x)$$ such that $$s = L_1(0)$$ and $$s' = L_2(0)$$, then the line $$y = L_1(x) + L_2(x) = (L_1 + L_2)(x)$$ satisfies $$(L_1 + L_2)(0) = s + s'$$ and $$(L_1 + L_2)(i) = L_1(i) + L_2(i)$$ for each $$i=1,2,3$$. Here, I'm thinking of $$L_1 + L_2$$ as a single new function of $$x$$. For example, if $$L_1(x) = 2+x$$ as above and $$L_2(x) = 3-5x$$, then $$(L_1 + L_2)(x) = 5 - 4x$$.
+
+Linearity is what enables parties to perform multi-party computations on secret inputs without revealing those secrets. For example, if we have performed secret sharing on a secret key, $$x$$, and a secret random nonce value, $$k$$, we may wish to compute the value $$s = k + H(R, m)\cdot x$$, for some publicly known constant $$H(R, m)$$. The value $$s$$ is a [Schnorr signature](/blog/introduction-to-schnorr-signatures) of the message $$m$$ by the shared key $$x$$. Linearity of our secret sharing schemes means that since we have split $$x$$ and $$k$$ into many pieces in a consistent manner, we can have each participant add $$H(R, m)$$ times their share of $$x$$ to their share of $$k$$ and the result is a share of $$s$$. Lastly, the parties can recover $$s$$ without having revealed $$k$$ or $$x$$ at any intermediate step! This means that if we can linearly secret share a value in a 2-of-3 fashion, we can also do many computations on the shared secrets requiring the collaboration of only 2-of-3 of the parties without ever having any single party learn the secret inputs to the computation. We will discuss this use of secret sharing more in depth at the end of this post. 
+
 ---
 
 ## Shamir Secret Sharing
@@ -66,7 +85,7 @@ $$
 f(x) = s + a_1x + a_2x^2 + \cdots + a_{t-1}x^{t-1}.
 $$
 
-Because we set the constant term to $$s$$, we have that $$f(0) = s$$. Next, we set $$s_1 = f(1), s_2 = f(2), \ldots, s_n = f(n)$$ and distribute the values $$(1,s_1), (2, s_2), \ldots, (n, s_n)$$ to their respective parties. Finally, any $$t$$ parties can use their shares to reconstruct the polynomial $$f(x)$$, because it is determined by any $$t$$ of its points, and then they can compute $$s = f(0)$$. This scheme is called Shamir Secret Sharing (SSS) (TODO: foreshadow DKG/VSS). But how do we actually compute $$f(x)$$ from some set of $$t$$ points $$(x_1, y_1), (x_2, y_2), \ldots, (x_t, y_t)$$? The problem of computing a curve that fits a given set of points is known as *interpolation* and is discussed in the next section. For readers already familiar with the details of Lagrange interpolation, [skip ahead](/blog/some-secrets-shared/#replicated-secret-sharing).
+Because we set the constant term to $$s$$, we have that $$f(0) = s$$. Next, we set $$s_1 = f(1), s_2 = f(2), \ldots, s_n = f(n)$$ and distribute the values $$(1,s_1), (2, s_2), \ldots, (n, s_n)$$ to their respective parties. Finally, any $$t$$ parties can use their shares to reconstruct the polynomial $$f(x)$$, because it is determined by any $$t$$ of its points, and then they can compute $$s = f(0)$$. This scheme is called Shamir Secret Sharing (SSS). But how do we actually compute $$f(x)$$ from some set of $$t$$ points $$(x_1, y_1), (x_2, y_2), \ldots, (x_t, y_t)$$? The problem of computing a curve that fits a given set of points is known as *interpolation* and is discussed in the next section. For readers already familiar with the details of Lagrange interpolation, [skip ahead](/blog/some-secrets-shared/#replicated-secret-sharing).
 
 ---
 
@@ -198,6 +217,8 @@ You may notice that while a $$2$$-of-$$3$$ replicated secret sharing (RSS) schem
 
 Thus, despite the simplicity of RSS, it is no big surprise that SSS has become the default method of secret sharing. However, in many practical applications, such as private key management, the number of devices involved ($$n$$) is relatively small. For example, even if $$10$$ devices are used, then in the worst case we require $$\binom{10}{5} = 252$$ summands, $$\binom{9}{5} = 126$$ of which are known to each device so that if each secret number is $$32$$ bytes, then each party only needs to store approximately $$4$$ kilobytes of data. Meanwhile, the worst case for $$20$$ devices requires each device to store approximately $$3$$ megabytes of data. It is clear that RSS scales poorly to large numbers of devices, but it is still perfectly practical to use for relatively small numbers of signers such as these.
 
+Beyond simplicity, another benefit of RSS that we will not focus on in this post is that it enables secret sharing that goes beyond thresholds to more general recovery policies. For example, if there is a secret shared between Alice (A), Bob (B), Carol (C), Dave (D), and Erin (E), where two of A, B, and C should be able to recover the secret, or two of A, D, and E should be able to recover the secret, then we can create $$5$$ secret summands such that $$\sum_{i=1}^5\phi_i = s$$ and give A $$\{\phi_2, \phi_3, \phi_4, \phi_5\}$$, give B $$\{\phi_1, \phi_2, \phi_3\}$$, give C $$\{\phi_1, \phi_4, \phi_5\}$$, give D $$\{\phi_1, \phi_2, \phi_4\}$$, and give E $$\{\phi_1, \phi_3, \phi_5\}$$. Since A is missing only $$\phi_1$$ and all other parties know this secret, A and any one other party can recover the secret. Furthermore, B and C know all five secrets together as do D and E, and no one of B or C together with one of D or E know all five secrets. This can be generalized to capture any policy, but we will continue to focus on threshold secret sharing for the rest of this post.
+
 ---
 
 ## Pseudorandom Secret Sharing
@@ -297,11 +318,13 @@ is the result of "interpolating in the exponent" using $$\{D_j\}_{j\in C}$$. The
 
 Thus, in the honest-majority setting, we now have Verifiable Pseudorandom Secret Sharing (VPSS)! With VPSS we can not only get infinite free SSS secrets from a single RSS DKG, but we can also verify participant shares and thus we can verifiably compute the aggregate public keys (i.e. perform [recovery in the exponent](/blog/some-secrets-shared/#recovery-in-the-exponent)) for the underlying distributed secrets without recovering those secrets directly.
 
+Note that it is possible to have alternate verification using zero knowledge proofs (ZKPs), which would not require an honest majority assumption. For example, if the VPSS setup (which is an RSS DKG) ends with everyone knowing the public keys of all of the secret pseudorandom function seeds, then participants can generate ZKPs that their point, $$D_j$$, was computed correctly. To make such proofs practical, using algebraic hash functions such as [MiMC](https://eprint.iacr.org/2016/492) to define the pseudorandom function may be necessary.
+
 ### A Note on Computing $$\Lambda_{j,k}^C$$
 
 The degree of $$L_{C,j}(x)$$ (i.e., the number of values of $$k$$) is equal to $$\vert C\vert$$, and there are also that many values of $$j$$, so there are $$\vert C\vert^2$$ total values to compute. We can expand each of $$L_{C, j}(x) = \prod_{i\in C\setminus\{j\}}\frac{i-x}{i-j}$$, but doing so naively takes $$O(\vert C\vert^3)$$ time. However, it is clearly possible to do better, since we can rewrite $$L_{C,j}(x) = \frac{A_{C,j}(x)}{A_{C,j}(j)},$$ where $$A_{C, j}(x) = \prod_{i\in C\setminus\{j\}} i - x = \frac{A_C(x)}{j-x}$$, where $$A_C(x) = \prod_{i\in C}i-x$$. We can compute $$A_C(x)$$ in $$O(\vert C\vert^2)$$ time and then use [Horner's method](https://en.wikipedia.org/wiki/Horner%27s_method) both to compute $$A_{C,j}(x)$$ and to evaluate $$A_{C,j}(j)$$ in time $$O(\vert C\vert)$$, and we need to do this second part $$\vert C\vert$$ times yielding a total result that takes only $$O(\vert C\vert^2)$$ time (which is optimal considering the number of values we are computing). This procedure is a variant of the more optimized [the Parker-Traub algorithm](https://www.sciencedirect.com/science/article/pii/S0885064X97904428).
 
-There are other methods for efficiently computing the values $$\Lambda_{j,k}^C$$, however. Most efficient algorithms for computing these values use the observation that if $$C = \{i_1, i_2, \ldots, i_n\}$$, then since $$L_{C, i_j}(i_\ell)$$ is equal to $$1$$ if $$\ell = j$$ and $$0$$ otherwise; hence, we get the following product of matrices:
+There are other methods for efficiently computing the values $$\Lambda_{j,k}^C$$, however. Most efficient algorithms for computing these values use the observations that if $$C = \{i_1, i_2, \ldots, i_n\}$$, then since $$L_{C, i_j}(i_\ell)$$ is equal to $$1$$ if $$\ell = j$$ and $$0$$ otherwise, and that $$L_{C, i_j}(x) = \sum_{k=0}^{\vert C\vert - 1}\Lambda_{j,k}^Cx^k$$; hence, we get the following product of matrices:
 
 $$\begin{pmatrix}
 1 & i_1 & \cdots & i_1^{n-1}\\
@@ -319,7 +342,7 @@ L_{C,i_1}(i_2) & L_{C, i_2}(i_2) & \cdots & L_{C, i_n}(i_2)\\
 \vdots & \vdots & \ddots & \vdots\\
 L_{C,i_1}(i_n) & L_{C, i_2}(i_n) & \cdots & L_{C, i_n}(i_n)\end{pmatrix} = \text{Id}.$$
 
-Therefore, we can conclude that the matrix containing all of the values $$\Lambda_{j,k}^C$$ that we are interested in computing is the inverse of the square [Vandermonde matrix](https://en.wikipedia.org/wiki/Vandermonde_matrix) generated by $$C$$.
+Therefore, we can conclude that the matrix containing all of the values $$\Lambda_{j,k}^C$$ that we are interested in computing is the inverse of the square [Vandermonde matrix](https://en.wikipedia.org/wiki/Vandermonde_matrix) generated by $$C$$. In other words, the matrix containing all of the values we wish to compute happens to be the inverse to a very highly structured matrix whose inversion can be efficiently computed.
 
 The [Bjorck-Pereyra algorithm](https://www.ams.org/journals/mcom/1970-24-112/S0025-5718-1970-0290541-1/S0025-5718-1970-0290541-1.pdf) decomposes a Vandermonde matrix into the product of structured sparse matrices, enabling fast $$O(n^2)$$ inversion of that matrix and yielding another efficient method for computing the values we need to perform verification.
 
@@ -327,4 +350,28 @@ The [Vandermonde Matrix Inversion Efficiency Algorithm (VIMEA)](https://www.mdpi
 
 ---
 
-TODO: Linearity, ZKPs to remove the honest majority requirement, Application to nonce generation in Schnorr threshold signatures, Clean things up.
+## Application to Threshold Schnorr Signatures
+
+To close out this post, let's zoom out and briefly consider the design space for Schnorr threshold signatures in light of all that we have learned in this blog post. I plan to write a more detailed deep-dive into Schnorr threshold signatures in the future, but here's a teaser. For background on what a Schnorr signature is, see [this previous post](/blog/introduction-to-schnorr-signatures). For background on the usefulness of Schnorr threshold signatures, see [this previous post](/blog/schnorr-applications-threshold-signatures). To understand this section, it will be important to understand the role a private key and a nonce play in a Schnorr signature.
+
+[FROST, which we have discussed in a previous post,](/blog/schnorr-applications-frost) is a round-optimized protocol that allows a group of participants that have a SSS-distributed private key to perform the multi-party computation resulting in a Schnorr signature for their shared private key. FROST is so well known that in many circles, people use the term FROST when they actually just mean "Schnorr threshold signature scheme." However, there are plenty of other threshold signature schemes for Schnorr other than FROST out there, and each has its own trade-offs.
+
+One such alternative, which is also a 2-round protocol, is called [Arctic (see Figure 6 on page 20)](https://eprint.iacr.org/2024/466). Arctic also applies to a SSS-distributed private key, but uses [VPSS](/blog/some-secrets-shared/#verifiable-pseudorandom-secret-sharing) to generate shared nonce values. (In fact, the framework of verifiability in VPSS was originally introduced by Arctic). In contrast, FROST delays the determination of the aggregate nonce to the second round of signing, at which point the subset of parties that will be collaborating to generate the signature is known, and FROST simply additively combines contributions from each of these parties. This difference gives Arctic three important benefits over FROST:
+
+1. The aggregate nonce is determined and known after the first round before signing session participants are chosen. This property is essential when trying to nest a two-round signing protocol within another two-round signature scheme such as [MuSig2](https://eprint.iacr.org/2020/1261) or recursively within itself. (See the [Nested MuSig2](/publication/2026-02-12-nested-musig2) paper for an introduction to nesting signature schemes).
+2. Arctic does not introduce sensitive state beyond the initial key generation setup because all VPSS outputs can be deterministically re-computed. (FROST requires a new secret nonce contribution be stored for each signing session).
+3. Arctic provides fully deterministic functionality after the initial key generation setup. In many contexts, this makes it possible to make it much harder for an attacker to cause a nonce re-use.
+
+On the other hand, the primary drawbacks of Arctic compared to FROST are that:
+
+1. Due to the PSS/RSS setup, Arctic [does not scale to very large sets of signers](/blog/some-secrets-shared/#replicated-secret-sharing) (e.g., more than 20).
+2. Arctic requires an honest majority assumption.
+
+However, this second point is a little misleading because firstly, it is possible to replace VPSS verification with ZKPs to remove the honest-majority requirement, and secondly, there is actually a variant of Arctic that uses PSS without using verification at all that does not require an honest majority (I am working on writing up this variant and its security proof). Thus, the primary trade-off to consider here is between the three benefits listed above and the size of state and computation explosion when large numbers of signers are involved. Therefore, since most applications of threshold signatures use fewer than 10 total signers, I personally believe that FROST is usually an inferior threshold signature scheme for most use-cases when compared to PSS-based threshold signatures (such as variants of Arctic), especially in protocols that have well-defined signing session identifiers.
+
+---
+
+## Conclusion
+
+
+TODO: Clean things up, Conclusion. Maybe add a note about how reading math is hard and that you shouldn't be discouraged by the *** minute read at the top.
