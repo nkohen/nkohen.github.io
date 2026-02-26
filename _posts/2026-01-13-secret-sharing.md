@@ -1,5 +1,5 @@
 ---
-title: '(WIP) Some Secrets Shared'
+title: 'Some Secrets Shared'
 author: 'Nadav Kohen'
 date: 2026-01-13
 permalink: /blog/some-secrets-shared/
@@ -12,8 +12,6 @@ tags:
   - Threshold Signatures
 ---
 
-THIS BLOG POST IS NOT FINISHED YET!
-
 In cryptography, **secret sharing** is the process of splitting a secret into pieces, called secret shares, so that no individual device stores the original secret, but some group of devices can collectively recover that secret. Classic examples of situations involving secret sharing include missile launch codes and shared custody in the corporate setting; in both cases multiple individuals' authorizations are required before any action can be taken. Recently, secret sharing has seen extensive use within multi-party computation (MPC) involving secret data, and private key management, where an individual or organization has cryptocurrency belonging to a secret key and they wish to split this key into $$n$$ key shares such that some subset of $$t$$ shares are required for using the key.
 
 In this post, we will be discussing two forms of secret sharing: Replicated Secret Sharing (RSS) and Shamir Secret Sharing (SSS). We will introduce the details of both of these schemes assuming relatively little background. We will also introduce a process for converting RSS shares into SSS shares that can be employed to construct a scheme known as Pseudorandom Secret Sharing (PSS) in which a single setup leads to an arbitrary number of secure deterministic SSS instantiations. Finally, we will see these constructions in action in the threshold Schnorr signature scheme, [Arctic](https://eprint.iacr.org/2024/466).
@@ -23,7 +21,7 @@ In this post, we will be discussing two forms of secret sharing: Replicated Secr
 * [2-of-3 Secret Sharing Examples](/blog/some-secrets-shared/#2-of-3-secret-sharing-examples)
 * [Shamir Secret Sharing](/blog/some-secrets-shared/#shamir-secret-sharing)
 * [Lagrange Interpolation](/blog/some-secrets-shared/#lagrange-interpolation)
-* [Uniqueness of Polynomial Interpolation](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation)
+  * [Uniqueness of Polynomial Interpolation](/blog/some-secrets-shared/#uniqueness-of-polynomial-interpolation)
 * [Replicated Secret Sharing](/blog/some-secrets-shared/#replicated-secret-sharing)
 * [Pseudorandom Secret Sharing](/blog/some-secrets-shared/#pseudorandom-secret-sharing)
 * [Distributed Key Generation](/blog/some-secrets-shared/#distributed-key-generation)
@@ -168,9 +166,7 @@ where $$C = \{x_1,\ldots, x_t\}$$ is the set of $$x$$-coordinates/participant in
 
 This particular method of reconstructing a polynomial from its points is known as Lagrange interpolation and the "building blocks" that we used, $$L_i(x)$$, are known as [Lagrange polynomials](https://en.wikipedia.org/wiki/Lagrange_polynomial).
 
----
-
-## Uniqueness of Polynomial Interpolation
+### Uniqueness of Polynomial Interpolation
 
 While it is completely sufficient for all practical purposes to simply assume/believe/trust that $$t$$ points uniquely define a degree $$(t-1)$$ polynomial, most arguments for why this must be the case are not particularly difficult (though they can be a bit dense), so I've included one such argument here just for fun. No content from this section is required to [read the rest of this post](/blog/some-secrets-shared/#replicated-secret-sharing).
 
@@ -322,6 +318,8 @@ Note that it is possible to have alternate verification using zero knowledge pro
 
 ### A Note on Computing $$\Lambda_{j,k}^C$$
 
+If you aren't interested in the details of optimal ways to compute $$\Lambda_{j,k}^C$$, feel free to [skip ahead](/blog/some-secrets-shared/#application-to-threshold-schnorr-signatures). 
+
 The degree of $$L_{C,j}(x)$$ (i.e., the number of values of $$k$$) is equal to $$\vert C\vert$$, and there are also that many values of $$j$$, so there are $$\vert C\vert^2$$ total values to compute. We can expand each of $$L_{C, j}(x) = \prod_{i\in C\setminus\{j\}}\frac{i-x}{i-j}$$, but doing so naively takes $$O(\vert C\vert^3)$$ time. However, it is clearly possible to do better, since we can rewrite $$L_{C,j}(x) = \frac{A_{C,j}(x)}{A_{C,j}(j)},$$ where $$A_{C, j}(x) = \prod_{i\in C\setminus\{j\}} i - x = \frac{A_C(x)}{j-x}$$, where $$A_C(x) = \prod_{i\in C}i-x$$. We can compute $$A_C(x)$$ in $$O(\vert C\vert^2)$$ time and then use [Horner's method](https://en.wikipedia.org/wiki/Horner%27s_method) both to compute $$A_{C,j}(x)$$ and to evaluate $$A_{C,j}(j)$$ in time $$O(\vert C\vert)$$, and we need to do this second part $$\vert C\vert$$ times yielding a total result that takes only $$O(\vert C\vert^2)$$ time (which is optimal considering the number of values we are computing). This procedure is a variant of the more optimized [the Parker-Traub algorithm](https://www.sciencedirect.com/science/article/pii/S0885064X97904428).
 
 There are other methods for efficiently computing the values $$\Lambda_{j,k}^C$$, however. Most efficient algorithms for computing these values use the observations that if $$C = \{i_1, i_2, \ldots, i_n\}$$, then since $$L_{C, i_j}(i_\ell)$$ is equal to $$1$$ if $$\ell = j$$ and $$0$$ otherwise, and that $$L_{C, i_j}(x) = \sum_{k=0}^{\vert C\vert - 1}\Lambda_{j,k}^Cx^k$$; hence, we get the following product of matrices:
@@ -372,6 +370,6 @@ However, this second point is a little misleading because firstly, it is possibl
 ---
 
 ## Conclusion
+In this post, we have introduced Shamir Secret Sharing and Replicated Secret Sharing, as well as the mathematical tools that power them and methods for Distributed Key Generation. We discussed why SSS is the preferred general secret sharing tool, but we also discussed how there are still many applications that would be better off using (Verifiable) Pseudorandom Secret Sharing (V)PSS, which is an RSS-based construction enabling arbitrarily many deterministically generated SSS-distributed secrets from a single RSS setup. Lastly, we've briefly discussed the use of (V)PSS in Schnorr threshold signatures as an alternative to FROST, which is the predominantly known, but not necessarily optimal Schnorr threshold signature.
 
-
-TODO: Clean things up, Conclusion. Maybe add a note about how reading math is hard and that you shouldn't be discouraged by the *** minute read at the top.
+Stay tuned for further deep dives on Schnorr threshold signatures and nested Schnorr signature schemes!
