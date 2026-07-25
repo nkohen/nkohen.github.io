@@ -22,7 +22,10 @@ main:
         
   - title: "Blog Posts"
     url: /blog/
-    
+
+  - title: "Number Go Up"
+    url: /number-go-up/
+
   # - title: "CV"
   #   url: /cv/
     
