@@ -41,4 +41,4 @@
   [data-action="expand"],
   .ready-card[data-key^="evaluate-"],
   #engine-badge { display: none !important; }
-`;document.head.appendChild(ee);async function Ze(){const{db:e,bound:t}=await Je();ye(e),ke(r=>{N(r),t&&X(r)}),N(e);const n=document.getElementById("save-file-btn");if(n)if(t){n.hidden=!0;const r=Ue();r&&(n.title=`Autosaving to ${r}`)}else n.hidden=!1,n.textContent="⤓ Download",n.title="This browser can't save back to a file. Your work autosaves in the browser; download a copy to take with you.",n.addEventListener("click",()=>Ye(m()));await F(()=>import("./app-DGBVkQjU.js"),[],import.meta.url)}Ze();
+`;document.head.appendChild(ee);async function Ze(){const{db:e,bound:t}=await Je();ye(e),ke(r=>{N(r),t&&X(r)}),N(e);const n=document.getElementById("save-file-btn");if(n)if(t){n.hidden=!0;const r=Ue();r&&(n.title=`Autosaving to ${r}`)}else n.hidden=!1,n.textContent="⤓ Download",n.title="This browser can't save back to a file. Your work autosaves in the browser; download a copy to take with you.",n.addEventListener("click",()=>Ye(m()));await F(()=>import("./app-K04cyj9M.js"),[],import.meta.url)}Ze();
