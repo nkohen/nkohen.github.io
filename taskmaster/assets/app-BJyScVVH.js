@@ -77,26 +77,26 @@ const d=t=>document.getElementById(t);let r={tasks:{},rootIds:[],ready:[],engine
       <span class="title">${p(t.title)}</span>
       ${ut(t,"card-toggle")}
       <button class="ghost mini" data-action="backlog" data-id="${t.id}" title="park this out of Do next until brought back">Backlog</button>
-    </div>`}function Te(t){return t.cue?`<div class="cue"><span class="cue-when">When</span> ${p(t.cue)}</div>`:""}function Vt(t,e){e=e||{};const a=e.solo,n=e.grouped,o=e.full,s=n?"":Y(t);let l;t.isQuestion?l=`<div class="answer-row">
+    </div>`}function Te(t){return t.cue?`<div class="cue"><span class="cue-when">When</span> ${p(t.cue)}</div>`:""}function Vt(t,e){e=e||{};const a=e.solo,n=e.grouped,o=e.full,s=n?"":Y(t),l=a?"":`<button class="ghost mini" data-action="backlog" data-id="${t.id}" title="park this out of Do next until brought back">Backlog</button>`;let i;if(t.isQuestion)i=`<div class="answer-row">
          <input type="text" data-role="decide" data-id="${t.id}" placeholder="Your decision…" />
          <button class="go mini" data-action="resolve" data-id="${t.id}">Record</button>
-       </div>`:l=`<div class="card-actions">${!t.isLeaf&&!t.expanded?`<button data-action="expand" data-id="${t.id}">Break down</button>`:""}<button class="go" data-action="done" data-id="${t.id}">Done</button></div>`;const i=v&&!a?(()=>{const I=we(),D=w.has(t.id),gt=!D&&I!==void 0&&t.parentId!==I;return`<input type="checkbox" class="group-select" data-role="ready-group-select" data-id="${t.id}" ${D?"checked":""} ${gt?"disabled":""} aria-label="select “${p(t.title)}” for grouping" />`})():"",u=a?"":`<button class="card-toggle" data-action="collapse-card" data-id="${t.id}" title="set aside for now">▾</button>`,g=a?"":`<button class="card-toggle" data-action="edit-meta" data-id="${t.id}" title="Edit" aria-label="edit task details">✎</button>`,b=a?"":ut(t,"card-toggle"),$=a?"":`<button class="card-toggle" data-action="toggle-move" data-id="${t.id}" title="Move to a different group" aria-label="move this task to a different group">⇄</button>`,c=a?"":`<button class="ghost mini" data-action="backlog" data-id="${t.id}" title="park this out of Do next until brought back">Backlog</button>`,f=Tt(t)+me(t.id),R=t.isQuestion,O=(N===t.id?mt(t):"")+(K===t.id?xe(t):"")+(Q.has(t.id)?ae(t):"");return`<div class="ready-card${R?" wide":""}${o?" full":""}${O?" has-popover":""}"${a?"":' draggable="true"'} data-key="${t.id}">
-      ${i}
+       </div>`;else{const I=!t.isLeaf&&!t.expanded?`<button data-action="expand" data-id="${t.id}">Break down</button>`:"";i=`<div class="card-actions">${l}${I}<button class="go" data-action="done" data-id="${t.id}">Done</button></div>`}const u=v&&!a?(()=>{const I=we(),D=w.has(t.id),gt=!D&&I!==void 0&&t.parentId!==I;return`<input type="checkbox" class="group-select" data-role="ready-group-select" data-id="${t.id}" ${D?"checked":""} ${gt?"disabled":""} aria-label="select “${p(t.title)}” for grouping" />`})():"",g=a?"":`<button class="card-toggle" data-action="collapse-card" data-id="${t.id}" title="set aside for now">▾</button>`,b=a?"":`<button class="card-toggle" data-action="edit-meta" data-id="${t.id}" title="Edit" aria-label="edit task details">✎</button>`,$=a?"":ut(t,"card-toggle"),c=a?"":`<button class="card-toggle" data-action="toggle-move" data-id="${t.id}" title="Move to a different group" aria-label="move this task to a different group">⇄</button>`,f=Tt(t)+me(t.id),R=t.isQuestion,O=(N===t.id?mt(t):"")+(K===t.id?xe(t):"")+(Q.has(t.id)?ae(t):"");return`<div class="ready-card${R?" wide":""}${o?" full":""}${O?" has-popover":""}"${a?"":' draggable="true"'} data-key="${t.id}">
       ${u}
+      ${g}
       <div class="body">
         ${Te(t)}
         <div class="title">${p(t.title)}</div>
         ${s?`<div class="crumb">${p(s)}</div>`:""}
         ${f?`<div class="meta">${f}</div>`:""}
         ${t.note?`<div class="note${rt.has(t.id)?" expanded":""}" data-id="${t.id}" title="${p(t.note)}">${p(t.note)}</div>`:""}
-        ${l}
-        ${c}
+        ${i}
+        ${t.isQuestion?l:""}
         ${e.oneThingSwap?`<button class="ghost mini one-swap" data-action="one-swap" data-id="${t.id}">Not this one? →</button>`:""}
         ${a?"":Bt(t)}
       </div>
-      ${b}
       ${$}
-      ${g}
+      ${c}
+      ${b}
       ${O?`<div class="card-popover">${O}</div>`:""}
     </div>`}function z(){const t=d("map");if(t.hidden=q,r.rootIds.length===0){t.innerHTML='<p class="hint">No tasks yet.</p>';return}const e=r.rootIds.filter(a=>r.tasks[a]&&pt(r.tasks[a]));if(e.length===0){const a=W==="open"?"No unfinished tasks — all done!":"Nothing completed yet.";t.innerHTML=`<p class="hint">${a}</p>`;return}t.innerHTML=e.map(a=>te(a,!0)).join("")}function Kt(t,e){return t===e?`${e}`:`${t}/${e}`}function bt(){const t=d("map-toggle");if(!t)return;const e=Object.keys(r.tasks).length,a=Object.values(r.tasks).filter(pt).length;t.textContent=`${q?"▸":"▾"} Task map${e?` (${Kt(a,e)})`:""}`}function Xt(){const t=d("map-filter");t&&t.querySelectorAll("button[data-filter]").forEach(e=>e.classList.toggle("on",e.dataset.filter===W))}function vt(){const t=d("mode-filter");t&&t.querySelectorAll("button[data-mode]").forEach(e=>e.classList.toggle("on",M.has(e.dataset.mode)))}function Zt(){const t=d("featured-toggle");t&&(t.classList.toggle("on",A),t.setAttribute("aria-pressed",String(A)),t.textContent=A?"★ Featured Tasks":"☆ Featured Tasks")}function V(){if(d("group-toggle").classList.toggle("on",j),d("group-toggle").textContent=j?"Cancel grouping":"Group into project…",d("group-bar").hidden=!j,!j)return;const t=B.size;d("group-count").textContent=t===0?"Select 2+ tasks below":`${t} selected`;const e=d("group-title").value.trim();d("group-submit").disabled=t<2||!e}function at(){const t=d("ready-group-toggle");t&&(t.classList.toggle("on",v),t.textContent=v?"Cancel grouping":"Group…")}function At(){const t=w.size;let e;if(t>0)e=`${t} selected`;else{const n=k!==void 0?r.tasks[k]:null;e=n?`Select 2+ from “${p(n.title)}” below`:"Select 2+ tasks below that currently share a group"}const a=t<2||!E.trim();return`<div id="ready-group-bar" class="meta-editor">
       <span id="ready-group-count">${e}</span>
