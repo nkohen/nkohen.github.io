@@ -19,9 +19,11 @@ const d=t=>document.getElementById(t);let l={tasks:{},rootIds:[],ready:[],engine
         </select>
       </div>
       ${t.parentId===null&&!t.isLeaf?`<label class="meta-ongoing"><input type="checkbox" data-role="meta-ongoing" data-id="${t.id}" ${t.ongoing?"checked":""} /> Ongoing project — keep a pinned "Evaluate next steps" in Do next</label>`:""}
-      <button class="mini go" data-action="save-meta" data-id="${t.id}">Save</button>
-      <button class="mini" data-action="cancel-meta" data-id="${t.id}">Cancel</button>
-      <button class="mini ghost meta-archive" data-action="archive" data-id="${t.id}" title="archive this task and everything under it (recoverable)">Archive</button>
+      <div class="meta-actions">
+        <button class="mini go" data-action="save-meta" data-id="${t.id}">Save</button>
+        <button class="mini" data-action="cancel-meta" data-id="${t.id}">Cancel</button>
+        <button class="mini ghost meta-archive" data-action="archive" data-id="${t.id}" title="archive this task and everything under it (recoverable)">Archive</button>
+      </div>
     </div>`}function Vt(t){const e=t.id;return`<div class="meta-editor">
       <label class="meta-title">Title <input type="text" data-role="subtask-title" data-id="${e}" placeholder="New subtask…" /></label>
       <label class="meta-note">Description <textarea data-role="subtask-note" data-id="${e}" rows="2" placeholder="Optional context for the AI…"></textarea></label>
