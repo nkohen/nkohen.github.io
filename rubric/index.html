@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio Rubric — Goal Setting</title>
+<meta name="description" content="Set your own grading rubric: weight each category and describe what each grade looks like." />
+<style>
+  :root {
+    --header-green: #1b5e20;
+    --lessons-header: #333333;    --lessons-sub: #e6e6e6;
+    --reflection-header: #3c78d8; --reflection-sub: #cfe2f3;
+    --seminar-header: #34a853;    --seminar-sub: #d9ead3;
+    --project-header: #e69138;    --project-sub: #fce5cd;
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --border: #d0d0d0;
+    --text: #222222;
+    --muted: #666666;
+    --ok: #2e7d32;
+    --bad: #c62828;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--header-green); color: #fff;
+    padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1rem;
+    flex-wrap: wrap; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .topbar h1 { font-size: 1.05rem; margin: 0; flex: 1 1 auto; min-width: 200px; }
+  .topbar .status { font-size: 0.85rem; opacity: 0.95; }
+  .topbar button {
+    background: #fff; color: var(--header-green); border: none;
+    padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 700; cursor: pointer;
+    font-size: 0.95rem;
+  }
+  .topbar button:disabled, .topbar button.is-disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .config-warning {
+    background: #fff3cd; color: #664d03; border-bottom: 1px solid #ffe69c;
+    padding: 0.6rem 1rem; font-size: 0.85rem;
+  }
+
+  main { max-width: 900px; margin: 0 auto; padding: 1rem; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+
+  label.field { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
+  input[type="text"], input[type="number"] {
+    width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem;
+  }
+
+  .section { border-radius: 8px; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border); }
+  .section-header {
+    position: relative;
+    padding: 0.6rem 0.9rem; color: #fff; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+  }
+  .section-header .badge {
+    font-size: 0.8rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(0,0,0,0.25);
+  }
+  .section-header .badge.ok { background: var(--ok); }
+  .section-header .badge.bad { background: var(--bad); }
+
+  .section-tooltip {
+    position: absolute; top: 100%; right: 0.75rem; margin-top: 0.4rem;
+    background: var(--bad); color: #fff; padding: 0.45rem 0.7rem; border-radius: 6px;
+    font-size: 0.78rem; font-weight: 600; line-height: 1.3; max-width: 260px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; pointer-events: none;
+    transition: opacity 0.2s; z-index: 60;
+  }
+  .section-tooltip.show { opacity: 1; }
+
+  details.row { border-top: 1px solid rgba(0,0,0,0.08); }
+  details.row:first-of-type { border-top: none; }
+  details.row summary {
+    list-style: none; cursor: pointer; padding: 0.6rem 0.9rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  }
+  details.row summary::-webkit-details-marker { display: none; }
+  details.row summary .name { font-weight: 600; flex: 1 1 auto; min-width: 140px; }
+  details.row summary .pct-wrap { display: flex; align-items: center; gap: 0.4rem; }
+  details.row summary .pct-wrap input { width: 5rem; }
+  details.row .row-body { padding: 0 0.9rem 0.9rem; }
+
+  .other-meaning { margin-bottom: 0.75rem; }
+
+  .grade-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; }
+  @media (max-width: 720px) { .grade-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .grade-grid { grid-template-columns: 1fr; } }
+  .grade-grid label { font-size: 0.8rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+  .grade-grid textarea {
+    width: 100%; min-height: 90px; resize: vertical; padding: 0.5rem; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 0.9rem; font-family: inherit;
+  }
+
+  .field-invalid {
+    outline: 2px solid var(--bad) !important; outline-offset: 1px;
+    transition: outline-color 0.3s;
+  }
+
+  .result { padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.95rem; }
+  .result.success { background: #e6f4ea; color: var(--ok); border: 1px solid #b6dfc0; }
+  .result.error { background: #fce8e6; color: var(--bad); border: 1px solid #f6b6ae; }
+  .hidden { display: none !important; }
+
+  .submit-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(20, 20, 20, 0.75);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .submit-overlay .box {
+    background: #ffffff; border-radius: 10px; padding: 2rem 2.5rem;
+    text-align: center; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .submit-overlay .box h2 { margin: 0; color: var(--ok); font-size: 1.4rem; }
+</style>
+</head>
+<body>
+
+<div id="config-warning" class="config-warning hidden">
+  This page hasn't been connected to a Google Sheet yet. Set <code>SCRIPT_URL</code> at the top of the script in this
+  file to your deployed Apps Script Web App URL.
+</div>
+
+<div id="submit-overlay" class="submit-overlay hidden">
+  <div class="box">
+    <h2>Your rubric has been submitted!</h2>
+  </div>
+</div>
+
+<div class="topbar">
+  <h1>Studio Rubric — Goal Setting</h1>
+  <span class="status" id="overall-status">0 / 4 sections balanced</span>
+  <button type="submit" form="rubric-form" id="submit-btn">Submit</button>
+</div>
+
+<main>
+  <div class="card">
+    <p>Set the weight (%) for each category — <strong>Lessons categories must sum to 70%</strong>, and each of
+    <strong>Reflection</strong>, <strong>Seminar</strong>, and <strong>Semester Project</strong> must sum to
+    <strong>10%</strong>. For every category you give a nonzero weight, describe what earning an A, B, C, D, or F
+    looks like to you. If you give "Other" a nonzero weight in a section, say what "Other" means there.</p>
+    <label class="field" for="student-name">Your name</label>
+    <input type="text" id="student-name" placeholder="Full name" required />
+  </div>
+
+  <form id="rubric-form"></form>
+
+  <div id="result" class="result hidden"></div>
+</main>
+
+<script>
+(function () {
+  // Paste the Web App URL from your Apps Script deployment here (see Code.gs).
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyvWrHC1aYO4km76Y_Udzh-Czrw8KZAIGlKHOMRUZtDOxnSJKkqpDH8_UBiLrw-RmVeg/exec";
+
+  const GRADES = ["A", "B", "C", "D", "F"];
+
+  // Keep this structure in sync with CATEGORY_STRUCTURE in Code.gs.
+  const SECTIONS = [
+    {
+      key: "lessons", title: "Lessons", target: 70,
+      header: "var(--lessons-header)", sub: "var(--lessons-sub)",
+      rows: ["Scales", "Etudes", "Solos", "Excerpts", "Collab Piano", "Other"],
+    },
+    {
+      key: "reflection", title: "Reflection", target: 10,
+      header: "var(--reflection-header)", sub: "var(--reflection-sub)",
+      rows: ["Practice logs", "Implementing Performance Feedback", "Other"],
+    },
+    {
+      key: "seminar", title: "Seminar", target: 10,
+      header: "var(--seminar-header)", sub: "var(--seminar-sub)",
+      rows: ["Giving Feedback", "Seminar Performance", "Clarinet Choir", "Other"],
+    },
+    {
+      key: "semester_project", title: "Semester Project", target: 10,
+      header: "var(--project-header)", sub: "var(--project-sub)",
+      rows: ["Performances", "Competitions", "Juries", "Non-performance projects", "Other"],
+    },
+  ];
+
+  const form = document.getElementById("rubric-form");
+  const overallStatus = document.getElementById("overall-status");
+  const submitBtn = document.getElementById("submit-btn");
+  const resultEl = document.getElementById("result");
+  const configWarning = document.getElementById("config-warning");
+
+  if (!SCRIPT_URL || SCRIPT_URL.indexOf("PASTE_YOUR") === 0) {
+    configWarning.classList.remove("hidden");
+  }
+
+  const rowRefs = []; // { section, name, pctInput, otherWrap, otherInput, textareas: {A,B,C,D,F} }
+
+  SECTIONS.forEach((section) => {
+    const sectionEl = document.createElement("div");
+    sectionEl.className = "section";
+
+    const headerEl = document.createElement("div");
+    headerEl.className = "section-header";
+    headerEl.style.background = section.header;
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    headerEl.innerHTML = `<span>${section.title}</span>`;
+    headerEl.appendChild(badge);
+    sectionEl.appendChild(headerEl);
+    section._badge = badge;
+    section._headerEl = headerEl;
+
+    section.rows.forEach((name) => {
+      const details = document.createElement("details");
+      details.className = "row";
+      details.style.background = section.sub;
+
+      const summary = document.createElement("summary");
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "name";
+      nameSpan.textContent = name;
+      const pctWrap = document.createElement("span");
+      pctWrap.className = "pct-wrap";
+      const pctInput = document.createElement("input");
+      pctInput.type = "number";
+      pctInput.min = "0";
+      pctInput.max = "100";
+      pctInput.step = "1";
+      pctInput.value = "0";
+      pctInput.addEventListener("click", (e) => e.stopPropagation());
+      pctInput.addEventListener("focus", (e) => e.stopPropagation());
+      pctInput.addEventListener("keydown", (e) => {
+        if (e.key === "-" || e.key === "Subtract") e.preventDefault();
+      });
+      pctWrap.appendChild(pctInput);
+      pctWrap.appendChild(document.createTextNode("%"));
+      summary.appendChild(nameSpan);
+      summary.appendChild(pctWrap);
+      details.appendChild(summary);
+
+      const body = document.createElement("div");
+      body.className = "row-body";
+
+      let otherWrap = null, otherInput = null;
+      if (name === "Other") {
+        otherWrap = document.createElement("div");
+        otherWrap.className = "other-meaning hidden";
+        const otherLabel = document.createElement("label");
+        otherLabel.className = "field";
+        otherLabel.textContent = 'What does "Other" mean in this section?';
+        otherInput = document.createElement("input");
+        otherInput.type = "text";
+        otherInput.placeholder = "Describe what this category covers";
+        otherWrap.appendChild(otherLabel);
+        otherWrap.appendChild(otherInput);
+        body.appendChild(otherWrap);
+      }
+
+      const gradeGrid = document.createElement("div");
+      gradeGrid.className = "grade-grid";
+      const textareas = {};
+      GRADES.forEach((g) => {
+        const lbl = document.createElement("label");
+        lbl.textContent = g;
+        const ta = document.createElement("textarea");
+        ta.placeholder = `What does an ${g} look like for ${name}?`;
+        lbl.appendChild(ta);
+        gradeGrid.appendChild(lbl);
+        textareas[g] = ta;
+      });
+      body.appendChild(gradeGrid);
+      details.appendChild(body);
+      sectionEl.appendChild(details);
+
+      rowRefs.push({ section, name, details, pctInput, otherWrap, otherInput, textareas });
+
+      pctInput.addEventListener("input", () => {
+        if (Number(pctInput.value) < 0) pctInput.value = "0";
+        if (otherWrap) otherWrap.classList.toggle("hidden", Number(pctInput.value) <= 0);
+        updateValidity();
+      });
+    });
+
+    form.appendChild(sectionEl);
+  });
+
+  // Tab order: name, then every percent field, then the description fields
+  // (row by row) — rather than interlacing percents with descriptions.
+  document.getElementById("student-name").tabIndex = 1;
+  let tabCounter = 2;
+  rowRefs.forEach((r) => { r.pctInput.tabIndex = tabCounter++; });
+  rowRefs.forEach((r) => {
+    if (r.otherInput) r.otherInput.tabIndex = tabCounter++;
+    GRADES.forEach((g) => { r.textareas[g].tabIndex = tabCounter++; });
+  });
+
+  function updateValidity() {
+    let allSectionsOk = true;
+    let balancedCount = 0;
+
+    SECTIONS.forEach((section) => {
+      const rows = rowRefs.filter((r) => r.section === section);
+      const total = rows.reduce((sum, r) => sum + (Number(r.pctInput.value) || 0), 0);
+      const ok = total === section.target;
+      if (ok) balancedCount++;
+      else allSectionsOk = false;
+      section._badge.textContent = `${total} / ${section.target}%`;
+      section._badge.className = "badge " + (ok ? "ok" : "bad");
+    });
+
+    overallStatus.textContent = `${balancedCount} / ${SECTIONS.length} sections balanced`;
+
+    const nameOk = document.getElementById("student-name").value.trim().length > 0;
+
+    let descriptionsOk = true;
+    rowRefs.forEach((r) => {
+      const pct = Number(r.pctInput.value) || 0;
+      if (pct > 0) {
+        GRADES.forEach((g) => {
+          if (!r.textareas[g].value.trim()) descriptionsOk = false;
+        });
+        if (r.name === "Other" && !r.otherInput.value.trim()) descriptionsOk = false;
+      }
+    });
+
+    const scriptConfigured = SCRIPT_URL && SCRIPT_URL.indexOf("PASTE_YOUR") !== 0;
+    const valid = allSectionsOk && nameOk && descriptionsOk && scriptConfigured;
+    // Not actually disabled (so hover/click can still explain what's wrong) —
+    // just styled to look disabled. Real submission is blocked by this
+    // function's return value, checked in the form's submit handler.
+    submitBtn.classList.toggle("is-disabled", !valid);
+    submitBtn.setAttribute("aria-disabled", String(!valid));
+    return valid;
+  }
+
+  function flagInvalid(el) {
+    el.classList.add("field-invalid");
+    clearTimeout(el._invalidTimeout);
+    el._invalidTimeout = setTimeout(() => el.classList.remove("field-invalid"), 2500);
+    if (!el._invalidClearWired) {
+      el._invalidClearWired = true;
+      el.addEventListener("input", () => el.classList.remove("field-invalid"));
+    }
+  }
+
+  function showSectionTooltip(section, text) {
+    let tip = section._tooltipEl;
+    if (!tip) {
+      tip = document.createElement("div");
+      tip.className = "section-tooltip";
+      section._headerEl.appendChild(tip);
+      section._tooltipEl = tip;
+    }
+    tip.textContent = text;
+    tip.classList.add("show");
+    clearTimeout(section._tooltipTimeout);
+    section._tooltipTimeout = setTimeout(() => tip.classList.remove("show"), 2500);
+  }
+
+  function flashValidationHints() {
+    SECTIONS.forEach((section) => {
+      const rows = rowRefs.filter((r) => r.section === section);
+      const total = rows.reduce((sum, r) => sum + (Number(r.pctInput.value) || 0), 0);
+      if (total !== section.target) {
+        showSectionTooltip(
+          section,
+          `Fix these so ${section.title} adds up to ${section.target}% (currently ${total}%).`
+        );
+      }
+    });
+
+    rowRefs.forEach((r) => {
+      const pct = Number(r.pctInput.value) || 0;
+      if (pct <= 0) return;
+      let needsOpen = false;
+      GRADES.forEach((g) => {
+        if (!r.textareas[g].value.trim()) {
+          flagInvalid(r.textareas[g]);
+          needsOpen = true;
+        }
+      });
+      if (r.name === "Other" && r.otherInput && !r.otherInput.value.trim()) {
+        flagInvalid(r.otherInput);
+        needsOpen = true;
+      }
+      if (needsOpen) r.details.open = true;
+    });
+  }
+
+  submitBtn.addEventListener("mouseenter", flashValidationHints);
+
+  document.getElementById("student-name").addEventListener("input", updateValidity);
+  rowRefs.forEach((r) => {
+    GRADES.forEach((g) => r.textareas[g].addEventListener("input", updateValidity));
+    if (r.otherInput) r.otherInput.addEventListener("input", updateValidity);
+  });
+  updateValidity();
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!updateValidity()) {
+      flashValidationHints();
+      return;
+    }
+
+    const payload = {
+      studentName: document.getElementById("student-name").value.trim(),
+      categories: rowRefs.map((r) => ({
+        section: r.section.title,
+        name: r.name,
+        percent: Number(r.pctInput.value) || 0,
+        descriptions: {
+          A: r.textareas.A.value.trim(),
+          B: r.textareas.B.value.trim(),
+          C: r.textareas.C.value.trim(),
+          D: r.textareas.D.value.trim(),
+          F: r.textareas.F.value.trim(),
+        },
+        otherMeaning: r.name === "Other" ? (r.otherInput.value.trim() || null) : null,
+      })),
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting…";
+    resultEl.className = "result hidden";
+
+    fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.text())
+      .then(() => {
+        document.getElementById("submit-overlay").classList.remove("hidden");
+      })
+      .catch(() => {
+        // Google Apps Script's CORS handling sometimes makes the browser block
+        // reading the response even though the row was saved successfully.
+        resultEl.className = "result error";
+        resultEl.textContent =
+          "The confirmation didn't come back, but the submission may still have gone through " +
+          "(this is a known quirk with Google Apps Script). Check the spreadsheet before resubmitting.";
+      })
+      .finally(() => {
+        submitBtn.textContent = "Submit";
+        updateValidity();
+      });
+  });
+})();
+</script>
+</body>
+</html>
