@@ -22,8 +22,8 @@
         }
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-qy5V58o_.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Bm3Sd-Uk.css">
+    <script type="module" crossorigin src="./assets/index-D4GnRiqK.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-D63ouKN2.css">
   <link rel="manifest" href="./manifest.webmanifest"></head>
   <body>
     <!--
@@ -79,6 +79,16 @@
           <label class="due-field">Due
             <input type="date" id="add-deadline" aria-label="Deadline (optional)" />
           </label>
+          <span class="recur-field">Repeats
+            <select id="add-recur-freq" aria-label="Repeats (optional)">
+              <option value="">Never</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="everyNDays">Every N days</option>
+            </select>
+            <span id="add-recur-n-field" class="recur-n-field" hidden>every <input type="number" id="add-recur-n" min="1" value="2" aria-label="Every how many days" /> days</span>
+          </span>
           <span class="prio-field">Priority
             <span class="prio-end">low</span>
             <span id="add-priority" class="prio-scale" role="radiogroup" aria-label="Priority, 1 (low) to 5 (high), optional">
