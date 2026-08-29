@@ -76,8 +76,8 @@ function doGet(e) {
     var sheet = getOrCreateDraftsSheet(ss);
     var row = findDraftRowByToken(sheet, e.parameter.token);
     if (!row) return jsonOutput({ ok: false, error: "Draft not found" });
-    var values = sheet.getRange(row, 1, 1, 5).getValues()[0];
-    return jsonOutput({ ok: true, email: values[0], draft: JSON.parse(values[4]) });
+    var values = sheet.getRange(row, 1, 1, 6).getValues()[0];
+    return jsonOutput({ ok: true, email: values[0], draft: JSON.parse(values[4]), submitted: !!values[5] });
   }
   return ContentService.createTextOutput("Rubric backend is running.");
 }
@@ -139,7 +139,10 @@ function handleSubmit(payload) {
   var timestamp = new Date();
   appendRawRow(ss, timestamp, clean);
   var sheetName = renderRubricSheet(ss, timestamp, clean);
-  if (payload.draftToken) deleteDraftByToken(ss, payload.draftToken);
+  // Keep (rather than delete) the draft row, so resuming this link later shows
+  // exactly what was submitted — not whatever the last autosave happened to
+  // catch — and the page can tell the student their submission was received.
+  if (payload.draftToken) markDraftSubmitted(ss, payload.draftToken, clean, timestamp);
   return { ok: true, sheet: sheetName };
 }
 
@@ -192,8 +195,8 @@ function getOrCreateDraftsSheet(ss) {
   var sheet = ss.getSheetByName(DRAFTS_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(DRAFTS_SHEET_NAME);
-    sheet.appendRow(["Email", "Student Name", "Token", "Last Saved", "Data (JSON)"]);
-    sheet.getRange(1, 1, 1, 5).setFontWeight("bold");
+    sheet.appendRow(["Email", "Student Name", "Token", "Last Saved", "Data (JSON)", "Submitted"]);
+    sheet.getRange(1, 1, 1, 6).setFontWeight("bold");
     sheet.setFrozenRows(1);
   }
   return sheet;
@@ -216,11 +219,12 @@ function findDraftRowByToken(sheet, token) {
   return null;
 }
 
-function deleteDraftByToken(ss, token) {
-  var sheet = ss.getSheetByName(DRAFTS_SHEET_NAME);
-  if (!sheet) return;
+function markDraftSubmitted(ss, token, clean, timestamp) {
+  var sheet = getOrCreateDraftsSheet(ss);
   var row = findDraftRowByToken(sheet, token);
-  if (row) sheet.deleteRow(row);
+  if (!row) return; // e.g. the student submitted without ever saving a draft
+  sheet.getRange(row, 2, 1, 4).setValues([[clean.studentName, token, timestamp, JSON.stringify(clean)]]);
+  sheet.getRange(row, 6).setValue(timestamp);
 }
 
 function appendRawRow(ss, timestamp, payload) {
@@ -269,9 +273,18 @@ function renderRubricSheet(ss, timestamp, payload) {
   row++;
 
   CATEGORY_STRUCTURE.forEach(function (section) {
-    sheet.getRange(row, 1, 1, numCols).merge()
-      .setValue(section.title + " (" + section.target + "%)")
-      .setBackground(section.headerColor).setFontColor("#ffffff").setFontWeight("bold");
+    // No merged cells here on purpose — Google Sheets "Table" objects refuse
+    // to accept a paste containing any merged cell at all ("You can't paste
+    // merged cells into a table"), and this output is meant to be copied into
+    // one. Instead, every cell in the row gets the same background/font
+    // color with the label only in column 1 — Sheets lets the text visually
+    // overflow into the empty, identically-colored cells to its right, which
+    // reads as one continuous bar without an actual merge.
+    var headerRowRange = sheet.getRange(row, 1, 1, numCols);
+    var headerRowValues = [section.title + " (" + section.target + "%)"];
+    for (var i = 1; i < numCols; i++) headerRowValues.push("");
+    headerRowRange.setValues([headerRowValues]);
+    headerRowRange.setBackground(section.headerColor).setFontColor("#ffffff").setFontWeight("bold");
     row++;
 
     section.rows.forEach(function (rowName) {

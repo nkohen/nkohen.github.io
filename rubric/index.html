@@ -129,6 +129,7 @@
     text-align: center; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   }
   .submit-overlay .box h2 { margin: 0; color: var(--ok); font-size: 1.4rem; }
+  .submit-overlay .box p { margin: 0.75rem 0 1rem; color: var(--text); font-size: 0.95rem; text-align: left; }
 </style>
 </head>
 <body>
@@ -141,6 +142,16 @@
 <div id="submit-overlay" class="submit-overlay hidden">
   <div class="box">
     <h2>Your rubric has been submitted!</h2>
+  </div>
+</div>
+
+<div id="already-submitted-overlay" class="submit-overlay hidden">
+  <div class="box">
+    <h2>Submission received</h2>
+    <p>We already have a submission from you for this rubric. Your saved answers are loaded below — feel free to
+    look them over, and edit and resubmit if you'd like to change anything. (Note that no changes made after your
+    first lesson will be included).</p>
+    <button type="button" id="already-submitted-dismiss" class="btn-secondary">Continue editing</button>
   </div>
 </div>
 
@@ -571,6 +582,14 @@
     }, 4000);
   }
 
+  const alreadySubmittedOverlay = document.getElementById("already-submitted-overlay");
+  document.getElementById("already-submitted-dismiss").addEventListener("click", () => {
+    alreadySubmittedOverlay.classList.add("hidden");
+  });
+  alreadySubmittedOverlay.addEventListener("click", (e) => {
+    if (e.target === alreadySubmittedOverlay) alreadySubmittedOverlay.classList.add("hidden");
+  });
+
   const draftTokenFromUrl = new URLSearchParams(location.search).get("draft");
   if (draftTokenFromUrl) {
     fetch(SCRIPT_URL + "?action=loadDraft&token=" + encodeURIComponent(draftTokenFromUrl))
@@ -580,9 +599,13 @@
           currentDraftToken = draftTokenFromUrl;
           if (data.email) saveEmailInput.value = data.email;
           applyDraft(data.draft);
-          showSaveStatus("Resumed your saved progress.", false);
+          if (data.submitted) {
+            alreadySubmittedOverlay.classList.remove("hidden");
+          } else {
+            showSaveStatus("Resumed your saved progress.", false);
+          }
         } else {
-          showSaveStatus("We couldn't find that saved draft — it may have already been submitted.", true);
+          showSaveStatus("That resume link doesn't seem to be valid.", true);
         }
       })
       .catch(() => {
