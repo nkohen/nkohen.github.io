@@ -49,9 +49,23 @@
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
 
   label.field { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
-  input[type="text"], input[type="number"] {
+  input[type="text"], input[type="email"], input[type="number"] {
     width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem;
   }
+  textarea {
+    width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.95rem; font-family: inherit; resize: vertical;
+  }
+
+  .btn-secondary {
+    background: var(--header-green); color: #fff; border: none; padding: 0.5rem 1rem;
+    border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; margin-top: 0.6rem;
+  }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #save-status { margin-top: 0.5rem; font-size: 0.85rem; font-weight: 600; }
+  #save-status.error { color: var(--bad); }
+  #save-status.success { color: var(--ok); }
 
   .section { border-radius: 8px; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border); }
   .section-header {
@@ -82,17 +96,16 @@
   details.row summary .name { font-weight: 600; flex: 1 1 auto; min-width: 140px; }
   details.row summary .pct-wrap { display: flex; align-items: center; gap: 0.4rem; }
   details.row summary .pct-wrap input { width: 5rem; }
+  details.row summary .fixed-pct { font-weight: 700; min-width: 2.5rem; text-align: right; }
   details.row .row-body { padding: 0 0.9rem 0.9rem; }
 
   .other-meaning { margin-bottom: 0.75rem; }
 
-  .grade-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; }
-  @media (max-width: 720px) { .grade-grid { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 480px) { .grade-grid { grid-template-columns: 1fr; } }
+  .grade-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+  @media (max-width: 700px) { .grade-grid { grid-template-columns: 1fr; } }
   .grade-grid label { font-size: 0.8rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 0.25rem; }
   .grade-grid textarea {
-    width: 100%; min-height: 90px; resize: vertical; padding: 0.5rem; border: 1px solid var(--border);
-    border-radius: 6px; font-size: 0.9rem; font-family: inherit;
+    min-height: 90px; font-size: 0.9rem;
   }
 
   .field-invalid {
@@ -139,15 +152,30 @@
 
 <main>
   <div class="card">
-    <p>Set the weight (%) for each category — <strong>Lessons categories must sum to 70%</strong>, and each of
-    <strong>Reflection</strong>, <strong>Seminar</strong>, and <strong>Semester Project</strong> must sum to
-    <strong>10%</strong>. For every category you give a nonzero weight, describe what earning an A, B, C, D, or F
-    looks like to you. If you give "Other" a nonzero weight in a section, say what "Other" means there.</p>
+    <p>Set the weight (%) for each category — <strong>Lessons categories must sum to 70%</strong> (Playing with
+    Metronome and Sight Reading are fixed at 5% each), and each of <strong>Reflection</strong>, <strong>Seminar</strong>,
+    and <strong>Semester Project</strong> must sum to <strong>10%</strong>. For every category you give a nonzero
+    weight, describe what it looks like to meet, approach, and not approach expectations. If you give "Other" a
+    nonzero weight in a section, say what "Other" means there.</p>
     <label class="field" for="student-name">Your name</label>
-    <input type="text" id="student-name" placeholder="Full name" required />
+    <input type="text" id="student-name" placeholder="Full name" maxlength="200" required />
+  </div>
+
+  <div class="card">
+    <p style="margin-top: 0;">Not going to finish this in one sitting? Enter your email and we'll send you a link to
+    come back to it later.</p>
+    <label class="field" for="save-email">Your email</label>
+    <input type="email" id="save-email" placeholder="you@example.com" maxlength="254" />
+    <button type="button" id="save-draft-btn" class="btn-secondary">Email me a resume link</button>
+    <div id="save-status"></div>
   </div>
 
   <form id="rubric-form"></form>
+
+  <div class="card">
+    <label class="field" for="form-feedback">Feedback on this form (optional)</label>
+    <textarea id="form-feedback" rows="3" maxlength="4000" placeholder="Anything confusing, missing, or that could be improved about this form itself?"></textarea>
+  </div>
 
   <div id="result" class="result hidden"></div>
 </main>
@@ -157,14 +185,35 @@
   // Paste the Web App URL from your Apps Script deployment here (see Code.gs).
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyvWrHC1aYO4km76Y_Udzh-Czrw8KZAIGlKHOMRUZtDOxnSJKkqpDH8_UBiLrw-RmVeg/exec";
 
-  const GRADES = ["A", "B", "C", "D", "F"];
+  // Keep these in sync with the corresponding MAX_* constants in Code.gs.
+  const MAX_SHORT_TEXT_LENGTH = 300;  // "Other" meaning
+  const MAX_LONG_TEXT_LENGTH = 4000;  // grade descriptions, feedback
 
-  // Keep this structure in sync with CATEGORY_STRUCTURE in Code.gs.
+  // Resume links are only useful to people who can receive mail at this
+  // domain — kept out of any visible page text on purpose.
+  const ALLOWED_EMAIL_DOMAIN = "@luther.edu";
+
+  // The three description prompts shown for every category. Keep the keys
+  // (A/C/F) in sync with GRADES in Code.gs.
+  const TIERS = [
+    { key: "A", question: "What does it look like to meet expectations (A)?" },
+    { key: "C", question: "What does it look like to approach expectations (C)?" },
+    { key: "F", question: "What does it look like to NOT approach expectations (F)?" },
+  ];
+
+  // Keep this structure in sync with CATEGORY_STRUCTURE in Code.gs. A row can
+  // be a plain name (student sets its %) or { name, fixedPercent } for a
+  // weight that's locked but still needs the three descriptions filled in.
   const SECTIONS = [
     {
       key: "lessons", title: "Lessons", target: 70,
       header: "var(--lessons-header)", sub: "var(--lessons-sub)",
-      rows: ["Scales", "Etudes", "Solos", "Excerpts", "Collab Piano", "Other"],
+      rows: [
+        "Scales", "Etudes", "Solos", "Excerpts", "Collab Piano",
+        { name: "Playing with Metronome", fixedPercent: 5 },
+        { name: "Sight Reading", fixedPercent: 5 },
+        "Other",
+      ],
     },
     {
       key: "reflection", title: "Reflection", target: 10,
@@ -188,12 +237,23 @@
   const submitBtn = document.getElementById("submit-btn");
   const resultEl = document.getElementById("result");
   const configWarning = document.getElementById("config-warning");
+  const feedbackInput = document.getElementById("form-feedback");
+  const saveEmailInput = document.getElementById("save-email");
+  const saveDraftBtn = document.getElementById("save-draft-btn");
+  const saveStatusEl = document.getElementById("save-status");
 
   if (!SCRIPT_URL || SCRIPT_URL.indexOf("PASTE_YOUR") === 0) {
     configWarning.classList.remove("hidden");
   }
 
-  const rowRefs = []; // { section, name, pctInput, otherWrap, otherInput, textareas: {A,B,C,D,F} }
+  let currentDraftToken = null;
+
+  // rowRefs entries: { section, name, details, pctInput, fixedPercent, otherWrap, otherInput, textareas: {A,C,F} }
+  const rowRefs = [];
+
+  function rowPercent(r) {
+    return r.fixedPercent != null ? r.fixedPercent : (Number(r.pctInput.value) || 0);
+  }
 
   SECTIONS.forEach((section) => {
     const sectionEl = document.createElement("div");
@@ -210,7 +270,11 @@
     section._badge = badge;
     section._headerEl = headerEl;
 
-    section.rows.forEach((name) => {
+    section.rows.forEach((rowDef) => {
+      const rowSpec = typeof rowDef === "string" ? { name: rowDef } : rowDef;
+      const name = rowSpec.name;
+      const fixedPercent = rowSpec.fixedPercent != null ? rowSpec.fixedPercent : null;
+
       const details = document.createElement("details");
       details.className = "row";
       details.style.background = section.sub;
@@ -221,19 +285,30 @@
       nameSpan.textContent = name;
       const pctWrap = document.createElement("span");
       pctWrap.className = "pct-wrap";
-      const pctInput = document.createElement("input");
-      pctInput.type = "number";
-      pctInput.min = "0";
-      pctInput.max = "100";
-      pctInput.step = "1";
-      pctInput.value = "0";
-      pctInput.addEventListener("click", (e) => e.stopPropagation());
-      pctInput.addEventListener("focus", (e) => e.stopPropagation());
-      pctInput.addEventListener("keydown", (e) => {
-        if (e.key === "-" || e.key === "Subtract") e.preventDefault();
-      });
-      pctWrap.appendChild(pctInput);
-      pctWrap.appendChild(document.createTextNode("%"));
+
+      let pctInput = null;
+      if (fixedPercent != null) {
+        const fixedSpan = document.createElement("span");
+        fixedSpan.className = "fixed-pct";
+        fixedSpan.textContent = `${fixedPercent}%`;
+        fixedSpan.title = "This weight is fixed and can't be changed";
+        pctWrap.appendChild(fixedSpan);
+      } else {
+        pctInput = document.createElement("input");
+        pctInput.type = "number";
+        pctInput.min = "0";
+        pctInput.max = "100";
+        pctInput.step = "1";
+        pctInput.value = "0";
+        pctInput.addEventListener("click", (e) => e.stopPropagation());
+        pctInput.addEventListener("focus", (e) => e.stopPropagation());
+        pctInput.addEventListener("keydown", (e) => {
+          if (e.key === "-" || e.key === "Subtract") e.preventDefault();
+        });
+        pctWrap.appendChild(pctInput);
+        pctWrap.appendChild(document.createTextNode("%"));
+      }
+
       summary.appendChild(nameSpan);
       summary.appendChild(pctWrap);
       details.appendChild(summary);
@@ -250,6 +325,7 @@
         otherLabel.textContent = 'What does "Other" mean in this section?';
         otherInput = document.createElement("input");
         otherInput.type = "text";
+        otherInput.maxLength = MAX_SHORT_TEXT_LENGTH;
         otherInput.placeholder = "Describe what this category covers";
         otherWrap.appendChild(otherLabel);
         otherWrap.appendChild(otherInput);
@@ -259,40 +335,81 @@
       const gradeGrid = document.createElement("div");
       gradeGrid.className = "grade-grid";
       const textareas = {};
-      GRADES.forEach((g) => {
+      TIERS.forEach((tier) => {
         const lbl = document.createElement("label");
-        lbl.textContent = g;
+        lbl.textContent = tier.key;
         const ta = document.createElement("textarea");
-        ta.placeholder = `What does an ${g} look like for ${name}?`;
+        ta.maxLength = MAX_LONG_TEXT_LENGTH;
+        ta.placeholder = tier.question;
         lbl.appendChild(ta);
         gradeGrid.appendChild(lbl);
-        textareas[g] = ta;
+        textareas[tier.key] = ta;
       });
       body.appendChild(gradeGrid);
       details.appendChild(body);
       sectionEl.appendChild(details);
 
-      rowRefs.push({ section, name, details, pctInput, otherWrap, otherInput, textareas });
+      const rowRef = { section, name, details, pctInput, fixedPercent, otherWrap, otherInput, textareas };
+      rowRefs.push(rowRef);
 
-      pctInput.addEventListener("input", () => {
-        if (Number(pctInput.value) < 0) pctInput.value = "0";
-        if (otherWrap) otherWrap.classList.toggle("hidden", Number(pctInput.value) <= 0);
-        updateValidity();
-      });
+      if (pctInput) {
+        pctInput.addEventListener("input", () => {
+          if (Number(pctInput.value) < 0) pctInput.value = "0";
+          if (otherWrap) otherWrap.classList.toggle("hidden", Number(pctInput.value) <= 0);
+          updateValidity();
+        });
+      }
     });
 
     form.appendChild(sectionEl);
   });
 
-  // Tab order: name, then every percent field, then the description fields
-  // (row by row) — rather than interlacing percents with descriptions.
+  // Tab order: name, then every editable percent field, then the description
+  // fields (row by row) and the feedback box — rather than interlacing
+  // percents with descriptions.
   document.getElementById("student-name").tabIndex = 1;
   let tabCounter = 2;
-  rowRefs.forEach((r) => { r.pctInput.tabIndex = tabCounter++; });
+  rowRefs.forEach((r) => { if (r.pctInput) r.pctInput.tabIndex = tabCounter++; });
   rowRefs.forEach((r) => {
     if (r.otherInput) r.otherInput.tabIndex = tabCounter++;
-    GRADES.forEach((g) => { r.textareas[g].tabIndex = tabCounter++; });
+    TIERS.forEach((tier) => { r.textareas[tier.key].tabIndex = tabCounter++; });
   });
+  feedbackInput.tabIndex = tabCounter++;
+
+  function buildPayload() {
+    return {
+      studentName: document.getElementById("student-name").value.trim(),
+      feedback: feedbackInput.value.trim(),
+      categories: rowRefs.map((r) => ({
+        section: r.section.title,
+        name: r.name,
+        percent: rowPercent(r),
+        descriptions: {
+          A: r.textareas.A.value.trim(),
+          C: r.textareas.C.value.trim(),
+          F: r.textareas.F.value.trim(),
+        },
+        otherMeaning: r.name === "Other" ? (r.otherInput.value.trim() || null) : null,
+      })),
+    };
+  }
+
+  function applyDraft(draft) {
+    document.getElementById("student-name").value = draft.studentName || "";
+    feedbackInput.value = draft.feedback || "";
+    (draft.categories || []).forEach((c) => {
+      const r = rowRefs.find((rr) => rr.section.title === c.section && rr.name === c.name);
+      if (!r) return;
+      if (r.pctInput) r.pctInput.value = c.percent || 0;
+      TIERS.forEach((tier) => {
+        r.textareas[tier.key].value = (c.descriptions && c.descriptions[tier.key]) || "";
+      });
+      if (r.otherInput) r.otherInput.value = c.otherMeaning || "";
+      if (r.otherWrap) r.otherWrap.classList.toggle("hidden", !((c.percent || 0) > 0));
+      if ((c.percent || 0) > 0) r.details.open = true;
+    });
+    updateValidity();
+  }
 
   function updateValidity() {
     let allSectionsOk = true;
@@ -300,7 +417,7 @@
 
     SECTIONS.forEach((section) => {
       const rows = rowRefs.filter((r) => r.section === section);
-      const total = rows.reduce((sum, r) => sum + (Number(r.pctInput.value) || 0), 0);
+      const total = rows.reduce((sum, r) => sum + rowPercent(r), 0);
       const ok = total === section.target;
       if (ok) balancedCount++;
       else allSectionsOk = false;
@@ -314,10 +431,9 @@
 
     let descriptionsOk = true;
     rowRefs.forEach((r) => {
-      const pct = Number(r.pctInput.value) || 0;
-      if (pct > 0) {
-        GRADES.forEach((g) => {
-          if (!r.textareas[g].value.trim()) descriptionsOk = false;
+      if (rowPercent(r) > 0) {
+        TIERS.forEach((tier) => {
+          if (!r.textareas[tier.key].value.trim()) descriptionsOk = false;
         });
         if (r.name === "Other" && !r.otherInput.value.trim()) descriptionsOk = false;
       }
@@ -330,6 +446,8 @@
     // function's return value, checked in the form's submit handler.
     submitBtn.classList.toggle("is-disabled", !valid);
     submitBtn.setAttribute("aria-disabled", String(!valid));
+
+    scheduleAutosave();
     return valid;
   }
 
@@ -360,7 +478,7 @@
   function flashValidationHints() {
     SECTIONS.forEach((section) => {
       const rows = rowRefs.filter((r) => r.section === section);
-      const total = rows.reduce((sum, r) => sum + (Number(r.pctInput.value) || 0), 0);
+      const total = rows.reduce((sum, r) => sum + rowPercent(r), 0);
       if (total !== section.target) {
         showSectionTooltip(
           section,
@@ -370,12 +488,11 @@
     });
 
     rowRefs.forEach((r) => {
-      const pct = Number(r.pctInput.value) || 0;
-      if (pct <= 0) return;
+      if (rowPercent(r) <= 0) return;
       let needsOpen = false;
-      GRADES.forEach((g) => {
-        if (!r.textareas[g].value.trim()) {
-          flagInvalid(r.textareas[g]);
+      TIERS.forEach((tier) => {
+        if (!r.textareas[tier.key].value.trim()) {
+          flagInvalid(r.textareas[tier.key]);
           needsOpen = true;
         }
       });
@@ -390,11 +507,88 @@
   submitBtn.addEventListener("mouseenter", flashValidationHints);
 
   document.getElementById("student-name").addEventListener("input", updateValidity);
+  feedbackInput.addEventListener("input", scheduleAutosave);
   rowRefs.forEach((r) => {
-    GRADES.forEach((g) => r.textareas[g].addEventListener("input", updateValidity));
+    TIERS.forEach((tier) => r.textareas[tier.key].addEventListener("input", updateValidity));
     if (r.otherInput) r.otherInput.addEventListener("input", updateValidity);
   });
   updateValidity();
+
+  // --- Save-and-resume-by-email ---
+
+  function showSaveStatus(text, isError) {
+    saveStatusEl.textContent = text;
+    saveStatusEl.className = isError ? "error" : "success";
+  }
+
+  function isAllowedEmail(email) {
+    return email.toLowerCase().trim().endsWith(ALLOWED_EMAIL_DOMAIN);
+  }
+
+  saveDraftBtn.addEventListener("click", () => {
+    const email = saveEmailInput.value.trim();
+    if (!email || !isAllowedEmail(email)) {
+      showSaveStatus("We couldn't send a link to that address — please double-check it and try again.", true);
+      return;
+    }
+
+    saveDraftBtn.disabled = true;
+    const prevText = saveDraftBtn.textContent;
+    saveDraftBtn.textContent = "Sending…";
+
+    fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "saveDraft", email, draft: buildPayload() }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.ok) {
+          if (data.token) currentDraftToken = data.token;
+          showSaveStatus("Link emailed! Check your inbox to resume later.", false);
+        } else {
+          showSaveStatus((data && data.error) || "Something went wrong — please try again.", true);
+        }
+      })
+      .catch(() => {
+        // Same Apps Script CORS quirk as final submit — it likely still saved and sent the email.
+        showSaveStatus("Sent! If nothing arrives in a few minutes, try again.", false);
+      })
+      .finally(() => {
+        saveDraftBtn.disabled = false;
+        saveDraftBtn.textContent = prevText;
+      });
+  });
+
+  let autosaveTimer = null;
+  function scheduleAutosave() {
+    if (!currentDraftToken) return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "autosaveDraft", token: currentDraftToken, draft: buildPayload() }),
+      }).catch(() => {}); // best-effort, silent
+    }, 4000);
+  }
+
+  const draftTokenFromUrl = new URLSearchParams(location.search).get("draft");
+  if (draftTokenFromUrl) {
+    fetch(SCRIPT_URL + "?action=loadDraft&token=" + encodeURIComponent(draftTokenFromUrl))
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.ok && data.draft) {
+          currentDraftToken = draftTokenFromUrl;
+          if (data.email) saveEmailInput.value = data.email;
+          applyDraft(data.draft);
+          showSaveStatus("Resumed your saved progress.", false);
+        } else {
+          showSaveStatus("We couldn't find that saved draft — it may have already been submitted.", true);
+        }
+      })
+      .catch(() => {
+        showSaveStatus("We couldn't load your saved draft right now.", true);
+      });
+  }
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -403,22 +597,7 @@
       return;
     }
 
-    const payload = {
-      studentName: document.getElementById("student-name").value.trim(),
-      categories: rowRefs.map((r) => ({
-        section: r.section.title,
-        name: r.name,
-        percent: Number(r.pctInput.value) || 0,
-        descriptions: {
-          A: r.textareas.A.value.trim(),
-          B: r.textareas.B.value.trim(),
-          C: r.textareas.C.value.trim(),
-          D: r.textareas.D.value.trim(),
-          F: r.textareas.F.value.trim(),
-        },
-        otherMeaning: r.name === "Other" ? (r.otherInput.value.trim() || null) : null,
-      })),
-    };
+    const payload = Object.assign({ action: "submit", draftToken: currentDraftToken }, buildPayload());
 
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting…";
