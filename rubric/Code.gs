@@ -1,26 +1,48 @@
 /**
- * Backend for the Studio Rubric goal-setting form (../index.html).
+ * Backend for the Studio Rubric goal-setting form (../index.html) AND the
+ * teacher gradebook desktop app (see ~/dev/anoushka-gradebook).
  *
- * Setup:
+ * Setup — public rubric form:
  *   1. Create a Google Sheet, then Extensions > Apps Script, and paste this whole file in as Code.gs.
  *   2. Run `runMeOnceToAuthorize` once from the Apps Script editor and approve the permissions.
  *      NOTE: if you restricted this project's OAuth scopes to just
- *      spreadsheets.currentonly (see the setup conversation), you must also add
- *      "https://www.googleapis.com/auth/script.send_mail" to the oauthScopes
- *      array in appsscript.json before MailApp.sendEmail will work, then
- *      re-run this and re-authorize.
+ *      spreadsheets.currentonly, you must widen them for the gradebook actions below
+ *      to work at all (see "Setup — gradebook app" step 1), then re-run this and re-authorize.
  *   3. Deploy > New deployment > type "Web app" > Execute as "Me" > Who has access "Anyone" > Deploy.
  *   4. Copy the Web App URL into SCRIPT_URL at the top of index.html's <script>.
  *   5. Update RESUME_BASE_URL below if the page isn't served from the default URL.
  *   6. Whenever you edit this file, use Manage deployments > edit (pencil) > Version: New > Deploy,
  *      otherwise the live URL keeps serving the old code.
  *
+ * Setup — gradebook app (adds the actions the desktop app calls):
+ *   1. In this project's appsscript.json (Project Settings > "Show appsscript.json manifest
+ *      file in editor"), make sure oauthScopes includes at least:
+ *        "https://www.googleapis.com/auth/spreadsheets"   (NOT spreadsheets.currentonly —
+ *          the gradebook actions open OTHER spreadsheets by ID, not just this bound one)
+ *        "https://www.googleapis.com/auth/drive.file"     (create/copy/share files — every
+ *          file this script ever touches, template + all per-student sheets, is one it
+ *          created itself, so the narrower drive.file scope is enough; no need for full drive)
+ *        "https://www.googleapis.com/auth/script.send_mail"
+ *      Re-run `runMeOnceToAuthorize` and re-approve after changing scopes.
+ *   2. Run `buildTemplateSpreadsheet` once from the Apps Script editor. It creates a new
+ *      "Gradebook Template" spreadsheet (Gradebook tab, then Rubrics tab, fully wired with
+ *      the same formulas described in ~/dev/anoushka-gradebook/docs/DESIGN.md) and logs its
+ *      ID/URL — View > Logs (or Executions) to find it.
+ *   3. In Project Settings > Script Properties, set:
+ *        TEMPLATE_SPREADSHEET_ID = <the id logged in step 2>
+ *        GRADEBOOK_SECRET        = <a long random string — this is the only thing that
+ *          gates every gradebook action below; generate with e.g. `openssl rand -hex 32`>
+ *      The desktop app's Settings screen needs this same URL + secret.
+ *   4. New deployment version (see step 6 above) so the new actions are actually live.
+ *
  * Keep CATEGORY_STRUCTURE in sync with the SECTIONS array in index.html — this is the single
- * source of truth for row order, section titles, and percent targets on the backend side.
+ * source of truth for row order, section titles, and percent targets, AND (as of the
+ * gradebook actions below) the fixed 24-row layout of the Gradebook/Rubrics tabs.
  */
 
 var RAW_SHEET_NAME = "Raw Data";
 var DRAFTS_SHEET_NAME = "Drafts";
+var ROSTER_SHEET_NAME = "Roster";
 var RESUME_BASE_URL = "https://nkohen.github.io/rubric/";
 
 // Resume links are only emailed to addresses ending in this domain. Anyone
@@ -62,6 +84,22 @@ var CATEGORY_STRUCTURE = [
 var GRADES = ["A", "C", "F"];
 var TABLE_HEADER = ["Category", "Percent"].concat(GRADES);
 
+// Gradebook/Rubrics tab layout (see docs/DESIGN.md in anoushka-gradebook for how these
+// were derived from the actual prototype workbook). Every action below that reads or
+// writes a student's Gradebook/Rubrics tab goes through flattenCategoryStructure() so
+// there's exactly one place that knows the row order.
+var DEFAULT_TEMPLATE_WEEKS = 15;
+var GRADEBOOK_SHEET_NAME = "Gradebook";
+var RUBRICS_SHEET_NAME = "Rubrics";
+
+var SYSTEM_SHEET_NAMES = [RAW_SHEET_NAME, DRAFTS_SHEET_NAME, ROSTER_SHEET_NAME];
+
+// Actions that require a valid GRADEBOOK_SECRET before doPost dispatches them at all.
+var GATED_ACTIONS = [
+  "listSubmissions", "listRoster", "createStudentSheet",
+  "refreshRubrics", "readGrades", "writeGrades",
+];
+
 function runMeOnceToAuthorize() {
   SpreadsheetApp.getActiveSpreadsheet();
 }
@@ -83,19 +121,61 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  var payload, action;
+  try {
+    payload = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return jsonOutput({ ok: false, error: "Malformed request" });
+  }
+  action = payload.action || "submit";
+
+  var isGated = GATED_ACTIONS.indexOf(action) !== -1;
+  if (isGated) {
+    try {
+      requireSecret(payload);
+    } catch (err) {
+      // Deliberately generic — never confirm/deny *why* a gated call failed.
+      return jsonOutput({ ok: false, error: "Unauthorized" });
+    }
+  }
+
   var response;
   try {
-    var payload = JSON.parse(e.postData.contents);
-    var action = payload.action || "submit";
-    if (action === "saveDraft") {
-      response = handleSaveDraft(payload, true);
-    } else if (action === "autosaveDraft") {
-      response = handleSaveDraft(payload, false);
-    } else {
-      response = handleSubmit(payload);
+    switch (action) {
+      case "submit":
+        response = handleSubmit(payload);
+        break;
+      case "saveDraft":
+        response = handleSaveDraft(payload, true);
+        break;
+      case "autosaveDraft":
+        response = handleSaveDraft(payload, false);
+        break;
+      case "listSubmissions":
+        response = handleListSubmissions();
+        break;
+      case "listRoster":
+        response = handleListRoster();
+        break;
+      case "createStudentSheet":
+        response = handleCreateStudentSheet(payload);
+        break;
+      case "refreshRubrics":
+        response = handleRefreshRubrics(payload);
+        break;
+      case "readGrades":
+        response = handleReadGrades(payload);
+        break;
+      case "writeGrades":
+        response = handleWriteGrades(payload);
+        break;
+      default:
+        throw new Error("Unknown action: " + action);
     }
   } catch (err) {
-    response = { ok: false, error: err.message };
+    // Gated actions never echo the raw error back over an endpoint anyone can
+    // reach — only the public form's low-stakes actions do, to help debugging.
+    response = { ok: false, error: isGated ? "Request failed" : err.message };
   }
   return jsonOutput(response);
 }
@@ -310,4 +390,342 @@ function renderRubricSheet(ss, timestamp, payload) {
   sheet.setFrozenRows(1);
   sheet.setFrozenColumns(1);
   return sheetName;
+}
+
+// ---------------------------------------------------------------------------
+// Gradebook app support (secret-gated). Everything below this point is new.
+// ---------------------------------------------------------------------------
+
+function requireSecret(payload) {
+  var expected = PropertiesService.getScriptProperties().getProperty("GRADEBOOK_SECRET");
+  if (!expected) throw new Error("Server not configured: missing GRADEBOOK_SECRET script property");
+  var provided = (payload && payload.secret) || "";
+  if (!timingSafeEquals(String(provided), expected)) throw new Error("Unauthorized");
+}
+
+// Avoids leaking how many leading characters of the secret matched via
+// response-time differences. Overkill for this threat model, but free.
+function timingSafeEquals(a, b) {
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function getTemplateSpreadsheetId() {
+  var id = PropertiesService.getScriptProperties().getProperty("TEMPLATE_SPREADSHEET_ID");
+  if (!id) throw new Error("Server not configured: missing TEMPLATE_SPREADSHEET_ID script property");
+  return id;
+}
+
+// Single source of truth for "which row is which" across Rubrics and
+// Gradebook. Both tabs list the same 4 section headers + their sub-items, in
+// the same order as CATEGORY_STRUCTURE; Rubrics data starts at row 2,
+// Gradebook data starts at row 7 — a fixed +5 offset, confirmed against the
+// real prototype workbook (see docs/DESIGN.md in anoushka-gradebook).
+function flattenCategoryStructure() {
+  var rows = [];
+  CATEGORY_STRUCTURE.forEach(function (section) {
+    rows.push({ isHeader: true, section: section.title, name: section.title, target: section.target });
+    section.rows.forEach(function (rowName) {
+      rows.push({ isHeader: false, section: section.title, name: rowName });
+    });
+  });
+  return rows;
+}
+
+function rubricsRowFor(flatIndex) { return flatIndex + 2; }
+function gradebookRowFor(flatIndex) { return flatIndex + 7; }
+
+function columnToLetter(col) {
+  var letter = "";
+  while (col > 0) {
+    var rem = (col - 1) % 26;
+    letter = String.fromCharCode(65 + rem) + letter;
+    col = Math.floor((col - 1) / 26);
+  }
+  return letter;
+}
+
+function getOrCreateRosterSheet(ss) {
+  var sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(ROSTER_SHEET_NAME);
+    sheet.appendRow(["Student Name", "Email", "Source Submission Tab", "Spreadsheet ID", "Spreadsheet URL", "Status", "Created At"]);
+    sheet.getRange(1, 1, 1, 7).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function findRosterRowByName(sheet, studentName) {
+  var values = sheet.getDataRange().getValues();
+  var target = studentName.trim().toLowerCase();
+  for (var i = 1; i < values.length; i++) {
+    if ((values[i][0] || "").toString().trim().toLowerCase() === target) return i + 1;
+  }
+  return null;
+}
+
+// Reads a raw submission tab (same layout renderRubricSheet writes: Category
+// in col A, Percent in col B, grade text in C.. one column per GRADES entry)
+// into a flat array parallel to flattenCategoryStructure().
+function readSubmissionSheet(sheet) {
+  var numDataRows = flattenCategoryStructure().length;
+  var values = sheet.getRange(2, 1, numDataRows, TABLE_HEADER.length).getValues();
+  return values.map(function (row) {
+    return {
+      label: row[0],
+      percent: row[1],
+      grades: GRADES.map(function (g, i) { return row[2 + i]; }),
+    };
+  });
+}
+
+// Writes submission data into a Rubrics tab's data cells only (percent +
+// grade-level text, columns C..). Column B (category name) is never touched —
+// it's baked into the template once and is what Gradebook's formulas key off.
+function writeRubricsData(rubricsSheet, submissionData) {
+  var values = submissionData.map(function (item) {
+    return [item.percent].concat(item.grades);
+  });
+  rubricsSheet.getRange(2, 3, values.length, 1 + GRADES.length).setValues(values);
+}
+
+function sendStudentSheetEmail(email, studentName, url) {
+  MailApp.sendEmail({
+    to: email,
+    subject: "Your gradebook is ready",
+    body: "Hi " + studentName + ",\n\n" +
+      "Your gradebook and rubric are now available here (view-only):\n\n" + url + "\n",
+  });
+}
+
+function handleListSubmissions() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var submissions = ss.getSheets()
+    .map(function (sheet) { return sheet.getName(); })
+    .filter(function (name) { return SYSTEM_SHEET_NAMES.indexOf(name) === -1; })
+    .sort();
+  return { ok: true, submissions: submissions };
+}
+
+function handleListRoster() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateRosterSheet(ss);
+  var values = sheet.getDataRange().getValues();
+  var roster = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (!row[0]) continue;
+    roster.push({
+      studentName: row[0],
+      email: row[1],
+      sourceTabName: row[2],
+      spreadsheetId: row[3],
+      spreadsheetUrl: row[4],
+      status: row[5],
+      createdAt: row[6],
+    });
+  }
+  return { ok: true, roster: roster };
+}
+
+function handleCreateStudentSheet(payload) {
+  var studentName = truncate(payload.studentName, MAX_NAME_LENGTH).trim();
+  var studentEmail = truncate(payload.studentEmail, MAX_EMAIL_LENGTH).trim();
+  var sourceTabName = String(payload.sourceTabName || "");
+  if (!studentName || !studentEmail || !sourceTabName) {
+    throw new Error("Missing studentName, studentEmail, or sourceTabName");
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var rosterSheet = getOrCreateRosterSheet(ss);
+    var existingRow = findRosterRowByName(rosterSheet, studentName);
+    if (existingRow && !payload.force) {
+      var existing = rosterSheet.getRange(existingRow, 1, 1, 7).getValues()[0];
+      return { ok: true, alreadyExists: true, spreadsheetId: existing[3], spreadsheetUrl: existing[4], status: existing[5] };
+    }
+
+    var sourceSheet = ss.getSheetByName(sourceTabName);
+    if (!sourceSheet) throw new Error("Submission tab not found: " + sourceTabName);
+    var submissionData = readSubmissionSheet(sourceSheet);
+
+    var templateId = getTemplateSpreadsheetId();
+    var newFile = DriveApp.getFileById(templateId).makeCopy(studentName + " - Gradebook");
+    var newId = newFile.getId();
+    var newUrl = newFile.getUrl();
+
+    // Write the Roster row (status "pending") before the share step, so a
+    // failure partway through (e.g. a bad email on addViewer) still leaves a
+    // findable, retryable record instead of an orphaned, untracked file.
+    var rowIndex = existingRow || (rosterSheet.getLastRow() + 1);
+    rosterSheet.getRange(rowIndex, 1, 1, 7).setValues([[
+      studentName, studentEmail, sourceTabName, newId, newUrl, "pending", new Date(),
+    ]]);
+    SpreadsheetApp.flush();
+
+    var newSs = SpreadsheetApp.openById(newId);
+    var rubricsSheet = newSs.getSheetByName(RUBRICS_SHEET_NAME);
+    if (!rubricsSheet) throw new Error("Template is missing its Rubrics tab");
+    writeRubricsData(rubricsSheet, submissionData);
+
+    DriveApp.getFileById(newId).addViewer(studentEmail);
+    sendStudentSheetEmail(studentEmail, studentName, newUrl);
+
+    rosterSheet.getRange(rowIndex, 6).setValue("done");
+
+    return { ok: true, alreadyExists: false, spreadsheetId: newId, spreadsheetUrl: newUrl };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleRefreshRubrics(payload) {
+  var spreadsheetId = String(payload.spreadsheetId || "");
+  var sourceTabName = String(payload.sourceTabName || "");
+  if (!spreadsheetId || !sourceTabName) throw new Error("Missing spreadsheetId or sourceTabName");
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName(sourceTabName);
+  if (!sourceSheet) throw new Error("Submission tab not found: " + sourceTabName);
+  var submissionData = readSubmissionSheet(sourceSheet);
+
+  var targetSs = SpreadsheetApp.openById(spreadsheetId);
+  var rubricsSheet = targetSs.getSheetByName(RUBRICS_SHEET_NAME);
+  if (!rubricsSheet) throw new Error("Target spreadsheet has no Rubrics tab");
+  writeRubricsData(rubricsSheet, submissionData);
+  return { ok: true };
+}
+
+function handleReadGrades(payload) {
+  var spreadsheetId = String(payload.spreadsheetId || "");
+  if (!spreadsheetId) throw new Error("Missing spreadsheetId");
+
+  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(GRADEBOOK_SHEET_NAME);
+  if (!sheet) throw new Error("Target spreadsheet has no Gradebook tab");
+
+  var lastCol = sheet.getLastColumn();
+  var headerRow = sheet.getRange(6, 1, 1, lastCol).getValues()[0];
+  var numDataRows = flattenCategoryStructure().length;
+  var dataRows = sheet.getRange(7, 1, numDataRows, lastCol).getValues();
+
+  return {
+    ok: true,
+    weekHeaders: headerRow.slice(3), // "Week 1", "Week 2", ... — however many the sheet actually has
+    rows: dataRows.map(function (r, i) {
+      return { row: 7 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: r.slice(3) };
+    }),
+  };
+}
+
+function handleWriteGrades(payload) {
+  var spreadsheetId = String(payload.spreadsheetId || "");
+  var weekNumber = Number(payload.weekNumber);
+  var scores = Array.isArray(payload.scores) ? payload.scores : [];
+  if (!spreadsheetId) throw new Error("Missing spreadsheetId");
+
+  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(GRADEBOOK_SHEET_NAME);
+  if (!sheet) throw new Error("Target spreadsheet has no Gradebook tab");
+
+  var maxWeeks = sheet.getLastColumn() - 3; // derived from the sheet, not hardcoded — see DESIGN.md
+  if (!(weekNumber >= 1 && weekNumber <= maxWeeks)) throw new Error("Invalid weekNumber");
+  var col = 3 + weekNumber;
+
+  var flat = flattenCategoryStructure();
+  var updates = scores.map(function (s) {
+    var row = Number(s.row);
+    var value = Number(s.value);
+    var flatIndex = row - 7;
+    var entry = flat[flatIndex];
+    // Header rows are structural (blank Weight in Rubrics), so writing a
+    // grade there would silently do nothing useful — reject it outright
+    // rather than let a client bug write into a row that can't count.
+    if (!entry || entry.isHeader) throw new Error("Invalid row: " + s.row);
+    if (!(value >= 0 && value <= 100)) throw new Error("Invalid value for row " + s.row);
+    return { row: row, value: value };
+  });
+
+  updates.forEach(function (u) {
+    sheet.getRange(u.row, col).setValue(u.value);
+  });
+
+  return { ok: true, updated: updates.length };
+}
+
+// One-time setup, run manually from the Apps Script editor (see the setup
+// notes at the top of this file). Builds a standalone template spreadsheet —
+// NOT a tab in this master sheet — because copying tabs individually into a
+// new file breaks their cross-tab formula references (Rubrics!C<n> becomes
+// #REF!); cloning the whole file with makeCopy() at provisioning time keeps
+// everything intact instead. See docs/DESIGN.md in anoushka-gradebook.
+function buildTemplateSpreadsheet() {
+  var ss = SpreadsheetApp.create("Gradebook Template");
+  var defaultSheet = ss.getSheets()[0];
+  var gradebook = ss.insertSheet(GRADEBOOK_SHEET_NAME, 0);
+  var rubrics = ss.insertSheet(RUBRICS_SHEET_NAME, 1);
+  ss.deleteSheet(defaultSheet);
+
+  buildRubricsTemplate(rubrics);
+  buildGradebookTemplate(gradebook);
+
+  Logger.log("Template spreadsheet created: %s", ss.getUrl());
+  Logger.log("Set the TEMPLATE_SPREADSHEET_ID script property to: %s", ss.getId());
+  return ss.getId();
+}
+
+function buildRubricsTemplate(sheet) {
+  var header = ["Category", "Percentage of Section", "This is what an A looks like", "This is what a C looks like", "This is what an F looks like"];
+  sheet.getRange(1, 2, 1, header.length).setValues([header]).setFontWeight("bold");
+  sheet.setColumnWidth(2, 200);
+  sheet.setColumnWidth(3, 90);
+  for (var c = 4; c <= 6; c++) sheet.setColumnWidth(c, 260);
+
+  var flat = flattenCategoryStructure();
+  flat.forEach(function (entry, i) {
+    var row = rubricsRowFor(i);
+    var cell = sheet.getRange(row, 2);
+    if (entry.isHeader) {
+      cell.setValue(entry.name + " (" + entry.target + "%)").setFontWeight("bold");
+    } else {
+      cell.setValue(entry.name);
+    }
+  });
+
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(1);
+}
+
+function buildGradebookTemplate(sheet) {
+  var flat = flattenCategoryStructure();
+  var lastRow = gradebookRowFor(flat.length - 1);
+  var lastWeekCol = 3 + DEFAULT_TEMPLATE_WEEKS;
+  var lastWeekColLetter = columnToLetter(lastWeekCol);
+
+  sheet.getRange(2, 2).setValue("Current Grade").setFontWeight("bold");
+  sheet.getRange(2, 3).setFormula(
+    '=IFERROR(SUMPRODUCT(C7:C' + lastRow + ', B7:B' + lastRow + ') / SUMIFS(B7:B' + lastRow + ', C7:C' + lastRow + ', ">=0"), "No Data")'
+  );
+
+  var header = ["Category", "Weight", "Category Grade"];
+  for (var w = 1; w <= DEFAULT_TEMPLATE_WEEKS; w++) header.push("Week " + w);
+  sheet.getRange(6, 1, 1, header.length).setValues([header]).setFontWeight("bold");
+
+  var formulaRows = flat.map(function (entry, i) {
+    var row = gradebookRowFor(i);
+    var rubricsRow = rubricsRowFor(i);
+    return [
+      "=Rubrics!B" + rubricsRow,
+      '=IF(ISBLANK(Rubrics!C' + rubricsRow + '), "", Rubrics!C' + rubricsRow + '/100)',
+      '=IF(COUNT(D' + row + ':' + lastWeekColLetter + row + ')>0, AVERAGE(D' + row + ':' + lastWeekColLetter + row + ')/100, "")',
+    ];
+  });
+  sheet.getRange(7, 1, formulaRows.length, 3).setFormulas(formulaRows);
+
+  sheet.setFrozenRows(6);
+  sheet.setFrozenColumns(1);
+  sheet.setColumnWidth(1, 220);
 }
