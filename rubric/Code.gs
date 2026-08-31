@@ -612,9 +612,11 @@ function handleReadGrades(payload) {
   var headerRow = sheet.getRange(6, 1, 1, lastCol).getValues()[0];
   var numDataRows = flattenCategoryStructure().length;
   var dataRows = sheet.getRange(7, 1, numDataRows, lastCol).getValues();
+  var currentGrade = sheet.getRange(2, 3).getValue();
 
   return {
     ok: true,
+    currentGrade: currentGrade,
     weekHeaders: headerRow.slice(3), // "Week 1", "Week 2", ... — however many the sheet actually has
     rows: dataRows.map(function (r, i) {
       return { row: 7 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: r.slice(3) };
