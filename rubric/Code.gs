@@ -938,7 +938,7 @@ function buildGradebookTemplate(sheet) {
   sheet.getRange(2, 2).setValue("Current Grade").setFontWeight("bold");
   sheet.getRange(2, 3).setFormula(
     '=IFERROR(SUMPRODUCT(C7:C' + lastRow + ', B7:B' + lastRow + ') / SUMIFS(B7:B' + lastRow + ', C7:C' + lastRow + ', ">=0"), "No Data")'
-  ).setNumberFormat("0%");
+  ).setNumberFormat("0%").setHorizontalAlignment("center");
   sheet.getRange(2, 2, 1, 2)
     .setBackground(TEMPLATE_STYLE.sectionBg)
     .setFontColor(TEMPLATE_STYLE.sectionFg)
@@ -951,6 +951,12 @@ function buildGradebookTemplate(sheet) {
     .setBackground(TEMPLATE_STYLE.headerBg)
     .setFontColor(TEMPLATE_STYLE.headerFg)
     .setFontWeight("bold");
+  // B/C never had an explicit width, so at Sheets' default (~100px) the
+  // "Current Grade" label in row 2 (which can't overflow into C2 — that
+  // cell has its own real content) was getting clipped to "Current Grad",
+  // and "Category Grade" was cramped against its neighbor.
+  sheet.setColumnWidth(2, 130);
+  sheet.setColumnWidth(3, 130);
 
   var formulaRows = flat.map(function (entry, i) {
     var row = gradebookRowFor(i);
@@ -965,8 +971,11 @@ function buildGradebookTemplate(sheet) {
   // Weight and Category Grade are both already-divided-by-100 fractions
   // (see the formulas above) — the built-in "0%" format is the right one
   // here (unlike Rubrics!C's raw 0-100 percent, see buildRubricsTemplate),
-  // and beats showing a student a bare decimal like 0.85.
+  // and beats showing a student a bare decimal like 0.85. Centered along
+  // with every week column below, rather than Sheets' default
+  // right-alignment for numbers.
   sheet.getRange(7, 2, formulaRows.length, 2).setNumberFormat("0%");
+  sheet.getRange(7, 2, formulaRows.length, lastWeekCol - 1).setHorizontalAlignment("center");
 
   // Section-header tint + alternating row banding on the sub-item rows —
   // background/font only, column A keeps the formula written above (it pulls
@@ -986,6 +995,13 @@ function buildGradebookTemplate(sheet) {
 
   sheet.getRange(6, 1, lastRow - 6 + 1, lastWeekCol)
     .setBorder(true, true, true, true, true, true, TEMPLATE_STYLE.gridColor, SpreadsheetApp.BorderStyle.SOLID);
+
+  // Column A pulls category labels from Rubrics!B<row> — some (e.g.
+  // "Implementing Performance Feedback") are long enough to get clipped at
+  // 220px with no wrap, same issue buildRubricsTemplate already had for its
+  // own category column. Wrap here only (not the whole table — the week
+  // columns hold short 2-3 digit values that don't need it).
+  sheet.getRange(6, 1, lastRow - 6 + 1, 1).setWrap(true);
 
   sheet.setFrozenRows(6);
   sheet.setFrozenColumns(1);
