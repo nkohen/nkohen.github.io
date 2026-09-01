@@ -95,13 +95,16 @@ var RUBRICS_SHEET_NAME = "Rubrics";
 // Cosmetic-only palette for the Gradebook/Rubrics template (buildGradebookTemplate,
 // buildRubricsTemplate below) — matches the desktop app's own accent (#1b5e20 in
 // src/styles.css) for brand consistency. Purely Range formatting (background/font/
-// border); never touches row/column position or formulas.
+// border); never touches row/column position or formulas. Section rows/bands use
+// each category's own headerColor/subColor from CATEGORY_STRUCTURE instead (the
+// same per-section palette renderRubricSheet already uses) — headerBg/headerFg
+// stay reserved for the one overall table header row in each tab, and
+// sectionBg/sectionFg for the standalone "Current Grade" indicator cell.
 var TEMPLATE_STYLE = {
   headerBg: "#1b5e20",
   headerFg: "#f6faf4",
   sectionBg: "#e3efe2",
   sectionFg: "#14401a",
-  bandBg: "#f2f7f0",
   gridColor: "#cfe0cc",
 };
 
@@ -449,9 +452,15 @@ function getTemplateSpreadsheetId() {
 function flattenCategoryStructure() {
   var rows = [];
   CATEGORY_STRUCTURE.forEach(function (section) {
-    rows.push({ isHeader: true, section: section.title, name: section.title, target: section.target });
+    rows.push({
+      isHeader: true, section: section.title, name: section.title, target: section.target,
+      headerColor: section.headerColor, subColor: section.subColor,
+    });
     section.rows.forEach(function (rowName) {
-      rows.push({ isHeader: false, section: section.title, name: rowName });
+      rows.push({
+        isHeader: false, section: section.title, name: rowName,
+        headerColor: section.headerColor, subColor: section.subColor,
+      });
     });
   });
   return rows;
@@ -896,6 +905,15 @@ function buildRubricsTemplate(sheet) {
   sheet.setColumnWidth(3, 130);
   for (var c = 4; c <= 6; c++) sheet.setColumnWidth(c, 260);
 
+  // Each section gets its own header/band color pair (from CATEGORY_STRUCTURE,
+  // via flattenCategoryStructure) rather than one shared green — the same
+  // per-section palette renderRubricSheet already uses for the raw
+  // submission tab, reused here rather than inventing a second one. White
+  // section-header text throughout, since every headerColor is a dark/vivid
+  // shade; sub-item rows alternate white/subColor within each section
+  // (bandIndex resets at each new section) the same way the old uniform
+  // green scheme did, just with each section's own subColor instead of one
+  // shared tint.
   var flat = flattenCategoryStructure();
   var bandIndex = 0;
   flat.forEach(function (entry, i) {
@@ -904,11 +922,11 @@ function buildRubricsTemplate(sheet) {
     var rowRange = sheet.getRange(row, 2, 1, numCols);
     if (entry.isHeader) {
       cell.setValue(entry.name + " (" + entry.target + "%)");
-      rowRange.setBackground(TEMPLATE_STYLE.sectionBg).setFontColor(TEMPLATE_STYLE.sectionFg).setFontWeight("bold");
+      rowRange.setBackground(entry.headerColor).setFontColor("#ffffff").setFontWeight("bold");
       bandIndex = 0;
     } else {
       cell.setValue(entry.name);
-      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : TEMPLATE_STYLE.bandBg);
+      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : entry.subColor);
       bandIndex++;
     }
   });
@@ -922,8 +940,9 @@ function buildRubricsTemplate(sheet) {
   // column does Rubrics!C/100 to turn it into a fraction) — the built-in
   // "0%" format would multiply it up and show 2000% for a value of 20.
   // A literal "%" suffix leaves the number as-is and just displays it the
-  // way a student expects to see a percentage.
-  sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat('0"%"');
+  // way a student expects to see a percentage. Centered, like every other
+  // numeric column in both tabs (Sheets right-aligns numbers by default).
+  sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat('0"%"').setHorizontalAlignment("center");
 
   sheet.setFrozenRows(1);
   sheet.setFrozenColumns(1);
@@ -977,7 +996,7 @@ function buildGradebookTemplate(sheet) {
   sheet.getRange(7, 2, formulaRows.length, 2).setNumberFormat("0%");
   sheet.getRange(7, 2, formulaRows.length, lastWeekCol - 1).setHorizontalAlignment("center");
 
-  // Section-header tint + alternating row banding on the sub-item rows —
+  // Same per-section palette as buildRubricsTemplate (see its comment) —
   // background/font only, column A keeps the formula written above (it pulls
   // the category label from Rubrics!B<row>, never a literal value here).
   var bandIndex = 0;
@@ -985,10 +1004,10 @@ function buildGradebookTemplate(sheet) {
     var row = gradebookRowFor(i);
     var rowRange = sheet.getRange(row, 1, 1, lastWeekCol);
     if (entry.isHeader) {
-      rowRange.setBackground(TEMPLATE_STYLE.sectionBg).setFontColor(TEMPLATE_STYLE.sectionFg).setFontWeight("bold");
+      rowRange.setBackground(entry.headerColor).setFontColor("#ffffff").setFontWeight("bold");
       bandIndex = 0;
     } else {
-      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : TEMPLATE_STYLE.bandBg);
+      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : entry.subColor);
       bandIndex++;
     }
   });
