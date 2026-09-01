@@ -92,6 +92,19 @@ var DEFAULT_TEMPLATE_WEEKS = 15;
 var GRADEBOOK_SHEET_NAME = "Gradebook";
 var RUBRICS_SHEET_NAME = "Rubrics";
 
+// Cosmetic-only palette for the Gradebook/Rubrics template (buildGradebookTemplate,
+// buildRubricsTemplate below) — matches the desktop app's own accent (#1b5e20 in
+// src/styles.css) for brand consistency. Purely Range formatting (background/font/
+// border); never touches row/column position or formulas.
+var TEMPLATE_STYLE = {
+  headerBg: "#1b5e20",
+  headerFg: "#f6faf4",
+  sectionBg: "#e3efe2",
+  sectionFg: "#14401a",
+  bandBg: "#f2f7f0",
+  gridColor: "#cfe0cc",
+};
+
 var SYSTEM_SHEET_NAMES = [RAW_SHEET_NAME, DRAFTS_SHEET_NAME, ROSTER_SHEET_NAME, GRADEBOOK_SHEET_NAME, RUBRICS_SHEET_NAME];
 
 // Actions that require a valid GRADEBOOK_SECRET before doPost dispatches them at all.
@@ -503,34 +516,72 @@ function sendStudentSheetEmail(email, studentName, url) {
   });
 }
 
+// Caches whole JSON responses for the read-only gradebook actions, keyed by
+// action name (+ spreadsheetId for readGrades). A hit skips
+// SpreadsheetApp.openById() and the range reads entirely — see
+// ~/dev/anoushka-gradebook/QUESTIONS.md #10: that non-bound openById() call
+// is one of two structural, plausible causes of the app's general slowness,
+// and this is the only place it can actually be skipped rather than just
+// made faster. TTL is short (20s) since these are read-only, low-stakes-if-
+// momentarily-stale values (per QUESTIONS.md #10), and every gated action
+// that changes what one of these would return removes its entry immediately
+// below rather than waiting out the TTL — see handleCreateStudentSheet,
+// handleWriteGrades, handleRefreshRubrics.
+var READ_CACHE_TTL_SECONDS = 20;
+
+function getReadCache() {
+  return CacheService.getScriptCache();
+}
+
+function cachedJsonResult(cacheKey, compute) {
+  var cache = getReadCache();
+  var hit = cache.get(cacheKey);
+  if (hit) return JSON.parse(hit);
+  var result = compute();
+  cache.put(cacheKey, JSON.stringify(result), READ_CACHE_TTL_SECONDS);
+  return result;
+}
+
+function invalidateReadCache(cacheKey) {
+  getReadCache().remove(cacheKey);
+}
+
+function readGradesCacheKey(spreadsheetId) {
+  return "readGrades:" + spreadsheetId;
+}
+
 function handleListSubmissions() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var submissions = ss.getSheets()
-    .map(function (sheet) { return sheet.getName(); })
-    .filter(function (name) { return SYSTEM_SHEET_NAMES.indexOf(name) === -1; })
-    .sort();
-  return { ok: true, submissions: submissions };
+  return cachedJsonResult("listSubmissions", function () {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var submissions = ss.getSheets()
+      .map(function (sheet) { return sheet.getName(); })
+      .filter(function (name) { return SYSTEM_SHEET_NAMES.indexOf(name) === -1; })
+      .sort();
+    return { ok: true, submissions: submissions };
+  });
 }
 
 function handleListRoster() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = getOrCreateRosterSheet(ss);
-  var values = sheet.getDataRange().getValues();
-  var roster = [];
-  for (var i = 1; i < values.length; i++) {
-    var row = values[i];
-    if (!row[0]) continue;
-    roster.push({
-      studentName: row[0],
-      email: row[1],
-      sourceTabName: row[2],
-      spreadsheetId: row[3],
-      spreadsheetUrl: row[4],
-      status: row[5],
-      createdAt: row[6],
-    });
-  }
-  return { ok: true, roster: roster };
+  return cachedJsonResult("listRoster", function () {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = getOrCreateRosterSheet(ss);
+    var values = sheet.getDataRange().getValues();
+    var roster = [];
+    for (var i = 1; i < values.length; i++) {
+      var row = values[i];
+      if (!row[0]) continue;
+      roster.push({
+        studentName: row[0],
+        email: row[1],
+        sourceTabName: row[2],
+        spreadsheetId: row[3],
+        spreadsheetUrl: row[4],
+        status: row[5],
+        createdAt: row[6],
+      });
+    }
+    return { ok: true, roster: roster };
+  });
 }
 
 function handleCreateStudentSheet(payload) {
@@ -594,6 +645,7 @@ function handleCreateStudentSheet(payload) {
     sendStudentSheetEmail(studentEmail, studentName, newUrl);
 
     rosterSheet.getRange(rowIndex, 6).setValue("done");
+    invalidateReadCache("listRoster");
 
     return { ok: true, alreadyExists: false, spreadsheetId: newId, spreadsheetUrl: newUrl };
   } finally {
@@ -615,6 +667,9 @@ function handleRefreshRubrics(payload) {
   var rubricsSheet = targetSs.getSheetByName(RUBRICS_SHEET_NAME);
   if (!rubricsSheet) throw new Error("Target spreadsheet has no Rubrics tab");
   writeRubricsData(rubricsSheet, submissionData);
+  // Gradebook's Weight column is a live formula off Rubrics!C<row>, so a
+  // rubric refresh changes what a cached readGrades would return too.
+  invalidateReadCache(readGradesCacheKey(spreadsheetId));
   return { ok: true };
 }
 
@@ -622,35 +677,37 @@ function handleReadGrades(payload) {
   var spreadsheetId = String(payload.spreadsheetId || "");
   if (!spreadsheetId) throw new Error("Missing spreadsheetId");
 
-  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(GRADEBOOK_SHEET_NAME);
-  if (!sheet) throw new Error("Target spreadsheet has no Gradebook tab");
+  return cachedJsonResult(readGradesCacheKey(spreadsheetId), function () {
+    var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(GRADEBOOK_SHEET_NAME);
+    if (!sheet) throw new Error("Target spreadsheet has no Gradebook tab");
 
-  var lastCol = sheet.getLastColumn();
-  var headerRow = sheet.getRange(6, 1, 1, lastCol).getValues()[0];
-  var numDataRows = flattenCategoryStructure().length;
-  var dataRows = sheet.getRange(7, 1, numDataRows, lastCol).getValues();
-  var currentGrade = sheet.getRange(2, 3).getValue();
+    var lastCol = sheet.getLastColumn();
+    var headerRow = sheet.getRange(6, 1, 1, lastCol).getValues()[0];
+    var numDataRows = flattenCategoryStructure().length;
+    var dataRows = sheet.getRange(7, 1, numDataRows, lastCol).getValues();
+    var currentGrade = sheet.getRange(2, 3).getValue();
 
-  // Only trust columns that actually look like "Week N" — a stray value
-  // anywhere past column C on this tab shouldn't turn into a phantom,
-  // silently-uncounted week column client-side.
-  var rawWeeks = headerRow.slice(3);
-  var weekIndices = [];
-  rawWeeks.forEach(function (h, i) {
-    if (/^Week \d+$/.test(String(h))) weekIndices.push(i);
+    // Only trust columns that actually look like "Week N" — a stray value
+    // anywhere past column C on this tab shouldn't turn into a phantom,
+    // silently-uncounted week column client-side.
+    var rawWeeks = headerRow.slice(3);
+    var weekIndices = [];
+    rawWeeks.forEach(function (h, i) {
+      if (/^Week \d+$/.test(String(h))) weekIndices.push(i);
+    });
+    var weekHeaders = weekIndices.map(function (i) { return rawWeeks[i]; });
+
+    return {
+      ok: true,
+      currentGrade: currentGrade,
+      weekHeaders: weekHeaders,
+      rows: dataRows.map(function (r, i) {
+        var allWeeks = r.slice(3);
+        var weeks = weekIndices.map(function (wi) { return allWeeks[wi]; });
+        return { row: 7 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: weeks };
+      }),
+    };
   });
-  var weekHeaders = weekIndices.map(function (i) { return rawWeeks[i]; });
-
-  return {
-    ok: true,
-    currentGrade: currentGrade,
-    weekHeaders: weekHeaders,
-    rows: dataRows.map(function (r, i) {
-      var allWeeks = r.slice(3);
-      var weeks = weekIndices.map(function (wi) { return allWeeks[wi]; });
-      return { row: 7 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: weeks };
-    }),
-  };
 }
 
 function handleWriteGrades(payload) {
@@ -713,6 +770,7 @@ function handleWriteGrades(payload) {
     values[u.row - minRow][u.col - minCol] = u.value === null ? "" : u.value;
   });
   range.setValues(values);
+  invalidateReadCache(readGradesCacheKey(spreadsheetId));
 
   return { ok: true, updated: updates.length };
 }
@@ -740,21 +798,35 @@ function buildTemplateSpreadsheet() {
 
 function buildRubricsTemplate(sheet) {
   var header = ["Category", "Percentage of Section", "This is what an A looks like", "This is what a C looks like", "This is what an F looks like"];
-  sheet.getRange(1, 2, 1, header.length).setValues([header]).setFontWeight("bold");
+  var numCols = header.length;
+  sheet.getRange(1, 2, 1, numCols).setValues([header])
+    .setBackground(TEMPLATE_STYLE.headerBg)
+    .setFontColor(TEMPLATE_STYLE.headerFg)
+    .setFontWeight("bold");
   sheet.setColumnWidth(2, 200);
   sheet.setColumnWidth(3, 90);
   for (var c = 4; c <= 6; c++) sheet.setColumnWidth(c, 260);
 
   var flat = flattenCategoryStructure();
+  var bandIndex = 0;
   flat.forEach(function (entry, i) {
     var row = rubricsRowFor(i);
     var cell = sheet.getRange(row, 2);
+    var rowRange = sheet.getRange(row, 2, 1, numCols);
     if (entry.isHeader) {
-      cell.setValue(entry.name + " (" + entry.target + "%)").setFontWeight("bold");
+      cell.setValue(entry.name + " (" + entry.target + "%)");
+      rowRange.setBackground(TEMPLATE_STYLE.sectionBg).setFontColor(TEMPLATE_STYLE.sectionFg).setFontWeight("bold");
+      bandIndex = 0;
     } else {
       cell.setValue(entry.name);
+      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : TEMPLATE_STYLE.bandBg);
+      bandIndex++;
     }
   });
+
+  var lastRow = rubricsRowFor(flat.length - 1);
+  sheet.getRange(1, 2, lastRow, numCols)
+    .setBorder(true, true, true, true, true, true, TEMPLATE_STYLE.gridColor, SpreadsheetApp.BorderStyle.SOLID);
 
   sheet.setFrozenRows(1);
   sheet.setFrozenColumns(1);
@@ -770,10 +842,18 @@ function buildGradebookTemplate(sheet) {
   sheet.getRange(2, 3).setFormula(
     '=IFERROR(SUMPRODUCT(C7:C' + lastRow + ', B7:B' + lastRow + ') / SUMIFS(B7:B' + lastRow + ', C7:C' + lastRow + ', ">=0"), "No Data")'
   );
+  sheet.getRange(2, 2, 1, 2)
+    .setBackground(TEMPLATE_STYLE.sectionBg)
+    .setFontColor(TEMPLATE_STYLE.sectionFg)
+    .setFontWeight("bold")
+    .setFontSize(12);
 
   var header = ["Category", "Weight", "Category Grade"];
   for (var w = 1; w <= DEFAULT_TEMPLATE_WEEKS; w++) header.push("Week " + w);
-  sheet.getRange(6, 1, 1, header.length).setValues([header]).setFontWeight("bold");
+  sheet.getRange(6, 1, 1, header.length).setValues([header])
+    .setBackground(TEMPLATE_STYLE.headerBg)
+    .setFontColor(TEMPLATE_STYLE.headerFg)
+    .setFontWeight("bold");
 
   var formulaRows = flat.map(function (entry, i) {
     var row = gradebookRowFor(i);
@@ -785,6 +865,25 @@ function buildGradebookTemplate(sheet) {
     ];
   });
   sheet.getRange(7, 1, formulaRows.length, 3).setFormulas(formulaRows);
+
+  // Section-header tint + alternating row banding on the sub-item rows —
+  // background/font only, column A keeps the formula written above (it pulls
+  // the category label from Rubrics!B<row>, never a literal value here).
+  var bandIndex = 0;
+  flat.forEach(function (entry, i) {
+    var row = gradebookRowFor(i);
+    var rowRange = sheet.getRange(row, 1, 1, lastWeekCol);
+    if (entry.isHeader) {
+      rowRange.setBackground(TEMPLATE_STYLE.sectionBg).setFontColor(TEMPLATE_STYLE.sectionFg).setFontWeight("bold");
+      bandIndex = 0;
+    } else {
+      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : TEMPLATE_STYLE.bandBg);
+      bandIndex++;
+    }
+  });
+
+  sheet.getRange(6, 1, lastRow - 6 + 1, lastWeekCol)
+    .setBorder(true, true, true, true, true, true, TEMPLATE_STYLE.gridColor, SpreadsheetApp.BorderStyle.SOLID);
 
   sheet.setFrozenRows(6);
   sheet.setFrozenColumns(1);
