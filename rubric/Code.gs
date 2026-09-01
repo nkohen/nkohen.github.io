@@ -92,7 +92,7 @@ var DEFAULT_TEMPLATE_WEEKS = 15;
 var GRADEBOOK_SHEET_NAME = "Gradebook";
 var RUBRICS_SHEET_NAME = "Rubrics";
 
-var SYSTEM_SHEET_NAMES = [RAW_SHEET_NAME, DRAFTS_SHEET_NAME, ROSTER_SHEET_NAME];
+var SYSTEM_SHEET_NAMES = [RAW_SHEET_NAME, DRAFTS_SHEET_NAME, ROSTER_SHEET_NAME, GRADEBOOK_SHEET_NAME, RUBRICS_SHEET_NAME];
 
 // Actions that require a valid GRADEBOOK_SECRET before doPost dispatches them at all.
 var GATED_ACTIONS = [
@@ -173,9 +173,11 @@ function doPost(e) {
         throw new Error("Unknown action: " + action);
     }
   } catch (err) {
-    // Gated actions never echo the raw error back over an endpoint anyone can
-    // reach — only the public form's low-stakes actions do, to help debugging.
-    response = { ok: false, error: isGated ? "Request failed" : err.message };
+    // The secret check above already passed by this point for gated actions,
+    // so the caller is already inside the authenticated boundary — echoing
+    // the real error message back doesn't leak anything an unauthenticated
+    // caller could use (they'd have been rejected as "Unauthorized" already).
+    response = { ok: false, error: err.message };
   }
   return jsonOutput(response);
 }
@@ -547,6 +549,21 @@ function handleCreateStudentSheet(payload) {
     var existingRow = findRosterRowByName(rosterSheet, studentName);
     if (existingRow && !payload.force) {
       var existing = rosterSheet.getRange(existingRow, 1, 1, 7).getValues()[0];
+      var existingStatus = existing[5];
+      if (existingStatus !== "done") {
+        // Don't silently treat a stuck row as success, and don't silently
+        // retry/finish the share step ourselves — a failure here (bad email,
+        // Drive quota, etc.) needs a human to look at it, not a guess at the
+        // right recovery action. See QUESTIONS.md #4.
+        throw new Error(
+          "Roster row for '" + studentName + "' is stuck at status '" + existingStatus +
+          "' (spreadsheetId: " + existing[3] + ", spreadsheetUrl: " + existing[4] + "). " +
+          "A previous createStudentSheet call didn't finish (likely failed during the " +
+          "share/email step). Check that spreadsheet and the student's email, then either " +
+          "fix and finish sharing it by hand and set its Roster status to \"done\", or call " +
+          "again with force:true to provision a fresh copy (leaves the old file orphaned in Drive)."
+        );
+      }
       return { ok: true, alreadyExists: true, spreadsheetId: existing[3], spreadsheetUrl: existing[4], status: existing[5] };
     }
 
@@ -614,19 +631,30 @@ function handleReadGrades(payload) {
   var dataRows = sheet.getRange(7, 1, numDataRows, lastCol).getValues();
   var currentGrade = sheet.getRange(2, 3).getValue();
 
+  // Only trust columns that actually look like "Week N" — a stray value
+  // anywhere past column C on this tab shouldn't turn into a phantom,
+  // silently-uncounted week column client-side.
+  var rawWeeks = headerRow.slice(3);
+  var weekIndices = [];
+  rawWeeks.forEach(function (h, i) {
+    if (/^Week \d+$/.test(String(h))) weekIndices.push(i);
+  });
+  var weekHeaders = weekIndices.map(function (i) { return rawWeeks[i]; });
+
   return {
     ok: true,
     currentGrade: currentGrade,
-    weekHeaders: headerRow.slice(3), // "Week 1", "Week 2", ... — however many the sheet actually has
+    weekHeaders: weekHeaders,
     rows: dataRows.map(function (r, i) {
-      return { row: 7 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: r.slice(3) };
+      var allWeeks = r.slice(3);
+      var weeks = weekIndices.map(function (wi) { return allWeeks[wi]; });
+      return { row: 7 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: weeks };
     }),
   };
 }
 
 function handleWriteGrades(payload) {
   var spreadsheetId = String(payload.spreadsheetId || "");
-  var weekNumber = Number(payload.weekNumber);
   var scores = Array.isArray(payload.scores) ? payload.scores : [];
   if (!spreadsheetId) throw new Error("Missing spreadsheetId");
 
@@ -634,26 +662,57 @@ function handleWriteGrades(payload) {
   if (!sheet) throw new Error("Target spreadsheet has no Gradebook tab");
 
   var maxWeeks = sheet.getLastColumn() - 3; // derived from the sheet, not hardcoded — see DESIGN.md
-  if (!(weekNumber >= 1 && weekNumber <= maxWeeks)) throw new Error("Invalid weekNumber");
-  var col = 3 + weekNumber;
+
+  // weekNumber is the fallback week for old-style (single-week form) calls,
+  // where every score omits its own `week`. Keep validating it up front even
+  // with an empty scores array, so a bad top-level weekNumber still fails
+  // loudly rather than silently changing behavior based on payload shape.
+  if (payload.weekNumber != null) {
+    var topWeek = Number(payload.weekNumber);
+    if (!(topWeek >= 1 && topWeek <= maxWeeks)) throw new Error("Invalid weekNumber");
+  }
 
   var flat = flattenCategoryStructure();
+  // Validate every entry before writing any — a single bad cell must abort
+  // the whole call with nothing written, not partially commit a big batch.
   var updates = scores.map(function (s) {
     var row = Number(s.row);
-    var value = Number(s.value);
+    var week = s.week != null ? Number(s.week) : Number(payload.weekNumber);
+    if (!(Number.isInteger(week) && week >= 1 && week <= maxWeeks)) throw new Error("Invalid week for row " + s.row);
     var flatIndex = row - 7;
     var entry = flat[flatIndex];
     // Header rows are structural (blank Weight in Rubrics), so writing a
     // grade there would silently do nothing useful — reject it outright
     // rather than let a client bug write into a row that can't count.
     if (!entry || entry.isHeader) throw new Error("Invalid row: " + s.row);
-    if (!(value >= 0 && value <= 100)) throw new Error("Invalid value for row " + s.row);
-    return { row: row, value: value };
+    var clearing = s.value === null;
+    var value = clearing ? null : Number(s.value);
+    if (!clearing && !(value >= 0 && value <= 100)) throw new Error("Invalid value for row " + s.row);
+    return { row: row, col: 3 + week, value: value };
   });
 
+  if (updates.length === 0) return { ok: true, updated: 0 };
+
+  // Batch as one read + one write over the bounding rectangle of every
+  // touched cell, instead of one setValue() per cell — a full-table save can
+  // touch hundreds of cells across many weeks, and per-cell setValue() in a
+  // loop risks the 6-minute execution limit and a half-written sheet on a
+  // mid-loop failure.
+  var minRow = updates[0].row, maxRow = updates[0].row;
+  var minCol = updates[0].col, maxCol = updates[0].col;
   updates.forEach(function (u) {
-    sheet.getRange(u.row, col).setValue(u.value);
+    if (u.row < minRow) minRow = u.row;
+    if (u.row > maxRow) maxRow = u.row;
+    if (u.col < minCol) minCol = u.col;
+    if (u.col > maxCol) maxCol = u.col;
   });
+
+  var range = sheet.getRange(minRow, minCol, maxRow - minRow + 1, maxCol - minCol + 1);
+  var values = range.getValues();
+  updates.forEach(function (u) {
+    values[u.row - minRow][u.col - minCol] = u.value === null ? "" : u.value;
+  });
+  range.setValues(values);
 
   return { ok: true, updated: updates.length };
 }
