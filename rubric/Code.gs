@@ -110,8 +110,13 @@ var SYSTEM_SHEET_NAMES = [RAW_SHEET_NAME, DRAFTS_SHEET_NAME, ROSTER_SHEET_NAME, 
 // Actions that require a valid GRADEBOOK_SECRET before doPost dispatches them at all.
 var GATED_ACTIONS = [
   "listSubmissions", "listRoster", "createStudentSheet",
-  "refreshRubrics", "readGrades", "writeGrades",
+  "refreshRubrics", "readGrades", "writeGrades", "removeStudentSheet",
 ];
+
+// Prefix applied to a removed student's Drive file name (see
+// handleRemoveStudentSheet) — kept as a backup, not deleted, and renamed so
+// it reads clearly as inactive if found in Drive later.
+var REMOVED_FILE_PREFIX = "[Removed] ";
 
 function runMeOnceToAuthorize() {
   SpreadsheetApp.getActiveSpreadsheet();
@@ -181,6 +186,9 @@ function doPost(e) {
         break;
       case "writeGrades":
         response = handleWriteGrades(payload);
+        break;
+      case "removeStudentSheet":
+        response = handleRemoveStudentSheet(payload);
         break;
       default:
         throw new Error("Unknown action: " + action);
@@ -488,6 +496,19 @@ function findRosterRowByName(sheet, studentName) {
   return null;
 }
 
+// Same shape as findRosterRowByName, keyed by Spreadsheet ID (column D)
+// instead of name. This is the only lookup handleRemoveStudentSheet does
+// before ever calling DriveApp on a caller-supplied ID — confirming the ID
+// is one already tracked in Roster, not just trusting it outright. See
+// CLAUDE.md's Drive/Sheets safety note.
+function findRosterRowBySpreadsheetId(sheet, spreadsheetId) {
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if ((values[i][3] || "").toString() === spreadsheetId) return { row: i + 1, values: values[i] };
+  }
+  return null;
+}
+
 // Reads a raw submission tab (same layout renderRubricSheet writes: Category
 // in col A, Percent in col B, grade text in C.. one column per GRADES entry)
 // into a flat array parallel to flattenCategoryStructure().
@@ -576,6 +597,12 @@ function handleListRoster() {
     for (var i = 1; i < values.length; i++) {
       var row = values[i];
       if (!row[0]) continue;
+      // Removed students are kept as a Roster row + a renamed Drive file
+      // (see handleRemoveStudentSheet) but deliberately hidden from the app
+      // from here on — this is the one place that filter lives, so both the
+      // Roster screen's list and the Grading screen's student picker (which
+      // both consume this same action) stay in sync automatically.
+      if (row[5] === "removed") continue;
       roster.push({
         studentName: row[0],
         email: row[1],
@@ -608,7 +635,10 @@ function handleCreateStudentSheet(payload) {
     if (existingMatch && !payload.force) {
       var existing = existingMatch.values;
       var existingStatus = existing[5];
-      if (existingStatus !== "done") {
+      if (existingStatus === "done") {
+        return { ok: true, alreadyExists: true, spreadsheetId: existing[3], spreadsheetUrl: existing[4], status: existing[5] };
+      }
+      if (existingStatus === "pending") {
         // Don't silently treat a stuck row as success, and don't silently
         // retry/finish the share step ourselves — a failure here (bad email,
         // Drive quota, etc.) needs a human to look at it, not a guess at the
@@ -622,7 +652,12 @@ function handleCreateStudentSheet(payload) {
           "again with force:true to provision a fresh copy (leaves the old file orphaned in Drive)."
         );
       }
-      return { ok: true, alreadyExists: true, spreadsheetId: existing[3], spreadsheetUrl: existing[4], status: existing[5] };
+      // existingStatus === "removed": this student's row is available for a
+      // fresh provision, same as if there were no existing row at all — fall
+      // through and reuse this row index rather than requiring force:true,
+      // since a removed student re-appearing in "not yet added" is exactly
+      // the case where the teacher would just click "Add to Gradebook" again
+      // with no reason to expect a special flag.
     }
 
     var sourceSheet = ss.getSheetByName(sourceTabName);
@@ -658,6 +693,48 @@ function handleCreateStudentSheet(payload) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// Removes a student from the app-visible Roster without deleting anything:
+// the Drive file is renamed (kept as a backup, easy to spot as inactive if
+// found later), unshared from the student (so they don't see a sheet that's
+// been silently renamed and frozen in place), and the Roster row is marked
+// "removed" rather than cleared, so there's still a record of who was here.
+// handleListRoster filters "removed" rows out of what it returns, which is
+// what actually makes the student disappear from both the Roster screen and
+// Grading's student picker — this function itself only ever touches one row
+// and one file.
+function handleRemoveStudentSheet(payload) {
+  var spreadsheetId = String(payload.spreadsheetId || "");
+  if (!spreadsheetId) throw new Error("Missing spreadsheetId");
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var rosterSheet = getOrCreateRosterSheet(ss);
+  // Never let a caller-supplied spreadsheetId reach DriveApp without first
+  // confirming it's one this app actually created and is already tracking —
+  // see CLAUDE.md's Drive/Sheets safety note.
+  var match = findRosterRowBySpreadsheetId(rosterSheet, spreadsheetId);
+  if (!match) throw new Error("No Roster row found for that spreadsheet");
+  if (match.values[5] === "removed") return { ok: true }; // already removed; idempotent
+
+  var file = DriveApp.getFileById(spreadsheetId);
+  var currentName = file.getName();
+  if (currentName.indexOf(REMOVED_FILE_PREFIX) !== 0) {
+    file.setName(REMOVED_FILE_PREFIX + currentName);
+  }
+
+  // Unshare from the student too — leaving it shared would mean they could
+  // still open a sheet that's now been renamed and silently frozen in place,
+  // which reads as confusing (or alarming) rather than "you were removed."
+  // No-op if they were never successfully shared with in the first place
+  // (e.g. a row stuck at "pending" before the share step ever ran).
+  var studentEmail = match.values[1];
+  if (studentEmail) file.removeViewer(studentEmail);
+
+  rosterSheet.getRange(match.row, 6).setValue("removed");
+  invalidateReadCache("listRoster");
+
+  return { ok: true };
 }
 
 function handleRefreshRubrics(payload) {
