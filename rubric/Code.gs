@@ -473,11 +473,17 @@ function getOrCreateRosterSheet(ss) {
   return sheet;
 }
 
+// Returns { row, values } for the matching Roster row (values = that row's
+// 7 columns, already in hand — the caller needs both the index, to write
+// back to later, and the data, to report on a stuck/existing row), or null.
+// A single getDataRange().getValues() call whether or not there's a match,
+// versus a second getRange().getValues() to re-fetch a row already read
+// during the scan.
 function findRosterRowByName(sheet, studentName) {
   var values = sheet.getDataRange().getValues();
   var target = studentName.trim().toLowerCase();
   for (var i = 1; i < values.length; i++) {
-    if ((values[i][0] || "").toString().trim().toLowerCase() === target) return i + 1;
+    if ((values[i][0] || "").toString().trim().toLowerCase() === target) return { row: i + 1, values: values[i] };
   }
   return null;
 }
@@ -597,9 +603,10 @@ function handleCreateStudentSheet(payload) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var rosterSheet = getOrCreateRosterSheet(ss);
-    var existingRow = findRosterRowByName(rosterSheet, studentName);
-    if (existingRow && !payload.force) {
-      var existing = rosterSheet.getRange(existingRow, 1, 1, 7).getValues()[0];
+    var existingMatch = findRosterRowByName(rosterSheet, studentName);
+    var existingRow = existingMatch ? existingMatch.row : null;
+    if (existingMatch && !payload.force) {
+      var existing = existingMatch.values;
       var existingStatus = existing[5];
       if (existingStatus !== "done") {
         // Don't silently treat a stuck row as success, and don't silently
