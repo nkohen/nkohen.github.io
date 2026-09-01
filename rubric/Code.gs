@@ -108,6 +108,17 @@ var TEMPLATE_STYLE = {
   gridColor: "#cfe0cc",
 };
 
+// Lightens a "#rrggbb" hex color toward white by `factor` (0-1). Used to
+// alternate each section's sub-item rows between its own subColor and a
+// brighter tint of that same hue, instead of plain white — keeps every band
+// visibly tied to its section's color rather than looking like a gap.
+function lightenColor(hex, factor) {
+  var channel = function (start) { return parseInt(hex.substr(start, 2), 16); };
+  var lighten = function (c) { return Math.round(c + (255 - c) * factor); };
+  var toHex = function (c) { return ("0" + c.toString(16)).slice(-2); };
+  return "#" + toHex(lighten(channel(1))) + toHex(lighten(channel(3))) + toHex(lighten(channel(5)));
+}
+
 var SYSTEM_SHEET_NAMES = [RAW_SHEET_NAME, DRAFTS_SHEET_NAME, ROSTER_SHEET_NAME, GRADEBOOK_SHEET_NAME, RUBRICS_SHEET_NAME];
 
 // Actions that require a valid GRADEBOOK_SECRET before doPost dispatches them at all.
@@ -446,9 +457,12 @@ function getTemplateSpreadsheetId() {
 
 // Single source of truth for "which row is which" across Rubrics and
 // Gradebook. Both tabs list the same 4 section headers + their sub-items, in
-// the same order as CATEGORY_STRUCTURE; Rubrics data starts at row 2,
-// Gradebook data starts at row 7 — a fixed +5 offset, confirmed against the
-// real prototype workbook (see docs/DESIGN.md in anoushka-gradebook).
+// the same order as CATEGORY_STRUCTURE; Rubrics data starts at row 2 (grounded
+// in the real prototype workbook, see docs/DESIGN.md §2 in anoushka-gradebook),
+// Gradebook data starts at row 4 — a fixed +2 offset. Gradebook's row 4 start
+// (Current Grade at row 1, one blank spacer row, header at row 3) is a
+// deliberate later tightening of the original prototype-derived layout
+// (which had it starting at row 7), not itself grounded in the prototype.
 function flattenCategoryStructure() {
   var rows = [];
   CATEGORY_STRUCTURE.forEach(function (section) {
@@ -467,7 +481,7 @@ function flattenCategoryStructure() {
 }
 
 function rubricsRowFor(flatIndex) { return flatIndex + 2; }
-function gradebookRowFor(flatIndex) { return flatIndex + 7; }
+function gradebookRowFor(flatIndex) { return flatIndex + 4; }
 
 function columnToLetter(col) {
   var letter = "";
@@ -776,14 +790,16 @@ function handleReadGrades(payload) {
 
     var lastCol = sheet.getLastColumn();
     var numDataRows = flattenCategoryStructure().length;
-    // One bounding-rectangle read (row 2 through the last data row) instead
+    // One bounding-rectangle read (row 1 through the last data row) instead
     // of three separate getValues()/getValue() calls — each is its own
     // round trip to the Sheets backend, and this is the one place in
     // readGrades that can be collapsed without changing what's read.
-    var block = sheet.getRange(2, 1, numDataRows + 5, lastCol).getValues();
+    // Layout: row 1 = Current Grade, row 2 = blank spacer, row 3 = header,
+    // row 4+ = data (see flattenCategoryStructure's comment / DESIGN.md §2).
+    var block = sheet.getRange(1, 1, numDataRows + 3, lastCol).getValues();
     var currentGrade = block[0][2];
-    var headerRow = block[4];
-    var dataRows = block.slice(5);
+    var headerRow = block[2];
+    var dataRows = block.slice(3);
 
     // Only trust columns that actually look like "Week N" — a stray value
     // anywhere past column C on this tab shouldn't turn into a phantom,
@@ -802,7 +818,7 @@ function handleReadGrades(payload) {
       rows: dataRows.map(function (r, i) {
         var allWeeks = r.slice(3);
         var weeks = weekIndices.map(function (wi) { return allWeeks[wi]; });
-        return { row: 7 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: weeks };
+        return { row: 4 + i, category: r[0], weight: r[1], categoryGrade: r[2], weeks: weeks };
       }),
     };
   });
@@ -834,7 +850,7 @@ function handleWriteGrades(payload) {
     var row = Number(s.row);
     var week = s.week != null ? Number(s.week) : Number(payload.weekNumber);
     if (!(Number.isInteger(week) && week >= 1 && week <= maxWeeks)) throw new Error("Invalid week for row " + s.row);
-    var flatIndex = row - 7;
+    var flatIndex = row - 4;
     var entry = flat[flatIndex];
     // Header rows are structural (blank Weight in Rubrics), so writing a
     // grade there would silently do nothing useful — reject it outright
@@ -910,10 +926,10 @@ function buildRubricsTemplate(sheet) {
   // per-section palette renderRubricSheet already uses for the raw
   // submission tab, reused here rather than inventing a second one. White
   // section-header text throughout, since every headerColor is a dark/vivid
-  // shade; sub-item rows alternate white/subColor within each section
-  // (bandIndex resets at each new section) the same way the old uniform
-  // green scheme did, just with each section's own subColor instead of one
-  // shared tint.
+  // shade; sub-item rows alternate a brighter tint of the section's own
+  // subColor with subColor itself (bandIndex resets at each new section),
+  // rather than alternating with plain white — every band stays visibly
+  // tied to its section's color instead of looking like a gap.
   var flat = flattenCategoryStructure();
   var bandIndex = 0;
   flat.forEach(function (entry, i) {
@@ -926,7 +942,7 @@ function buildRubricsTemplate(sheet) {
       bandIndex = 0;
     } else {
       cell.setValue(entry.name);
-      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : entry.subColor);
+      rowRange.setBackground(bandIndex % 2 === 0 ? lightenColor(entry.subColor, 0.5) : entry.subColor);
       bandIndex++;
     }
   });
@@ -954,11 +970,19 @@ function buildGradebookTemplate(sheet) {
   var lastWeekCol = 3 + DEFAULT_TEMPLATE_WEEKS;
   var lastWeekColLetter = columnToLetter(lastWeekCol);
 
-  sheet.getRange(2, 2).setValue("Current Grade").setFontWeight("bold");
-  sheet.getRange(2, 3).setFormula(
-    '=IFERROR(SUMPRODUCT(C7:C' + lastRow + ', B7:B' + lastRow + ') / SUMIFS(B7:B' + lastRow + ', C7:C' + lastRow + ', ">=0"), "No Data")'
+  // Layout: row 1 = Current Grade, row 2 = a single blank spacer row, row 3 =
+  // header, row 4+ = data (gradebookRowFor). Deliberately tighter than the
+  // original prototype-derived layout (which had 4 blank rows above the
+  // header) — see flattenCategoryStructure's comment.
+  var HEADER_ROW = 3;
+  var DATA_START_ROW = gradebookRowFor(0);
+
+  sheet.getRange(1, 2).setValue("Current Grade").setFontWeight("bold");
+  sheet.getRange(1, 3).setFormula(
+    '=IFERROR(SUMPRODUCT(C' + DATA_START_ROW + ':C' + lastRow + ', B' + DATA_START_ROW + ':B' + lastRow +
+      ') / SUMIFS(B' + DATA_START_ROW + ':B' + lastRow + ', C' + DATA_START_ROW + ':C' + lastRow + ', ">=0"), "No Data")'
   ).setNumberFormat("0%").setHorizontalAlignment("center");
-  sheet.getRange(2, 2, 1, 2)
+  sheet.getRange(1, 2, 1, 2)
     .setBackground(TEMPLATE_STYLE.sectionBg)
     .setFontColor(TEMPLATE_STYLE.sectionFg)
     .setFontWeight("bold")
@@ -966,12 +990,12 @@ function buildGradebookTemplate(sheet) {
 
   var header = ["Category", "Weight", "Category Grade"];
   for (var w = 1; w <= DEFAULT_TEMPLATE_WEEKS; w++) header.push("Week " + w);
-  sheet.getRange(6, 1, 1, header.length).setValues([header])
+  sheet.getRange(HEADER_ROW, 1, 1, header.length).setValues([header])
     .setBackground(TEMPLATE_STYLE.headerBg)
     .setFontColor(TEMPLATE_STYLE.headerFg)
     .setFontWeight("bold");
   // B/C never had an explicit width, so at Sheets' default (~100px) the
-  // "Current Grade" label in row 2 (which can't overflow into C2 — that
+  // "Current Grade" label in row 1 (which can't overflow into C1 — that
   // cell has its own real content) was getting clipped to "Current Grad",
   // and "Category Grade" was cramped against its neighbor.
   sheet.setColumnWidth(2, 130);
@@ -986,19 +1010,22 @@ function buildGradebookTemplate(sheet) {
       '=IF(COUNT(D' + row + ':' + lastWeekColLetter + row + ')>0, AVERAGE(D' + row + ':' + lastWeekColLetter + row + ')/100, "")',
     ];
   });
-  sheet.getRange(7, 1, formulaRows.length, 3).setFormulas(formulaRows);
+  sheet.getRange(DATA_START_ROW, 1, formulaRows.length, 3).setFormulas(formulaRows);
   // Weight and Category Grade are both already-divided-by-100 fractions
   // (see the formulas above) — the built-in "0%" format is the right one
   // here (unlike Rubrics!C's raw 0-100 percent, see buildRubricsTemplate),
   // and beats showing a student a bare decimal like 0.85. Centered along
   // with every week column below, rather than Sheets' default
   // right-alignment for numbers.
-  sheet.getRange(7, 2, formulaRows.length, 2).setNumberFormat("0%");
-  sheet.getRange(7, 2, formulaRows.length, lastWeekCol - 1).setHorizontalAlignment("center");
+  sheet.getRange(DATA_START_ROW, 2, formulaRows.length, 2).setNumberFormat("0%");
+  sheet.getRange(DATA_START_ROW, 2, formulaRows.length, lastWeekCol - 1).setHorizontalAlignment("center");
 
   // Same per-section palette as buildRubricsTemplate (see its comment) —
   // background/font only, column A keeps the formula written above (it pulls
   // the category label from Rubrics!B<row>, never a literal value here).
+  // Sub-item rows alternate a brighter tint of the section's own subColor
+  // with subColor itself, instead of alternating with plain white — every
+  // band stays visibly tied to its section's color.
   var bandIndex = 0;
   flat.forEach(function (entry, i) {
     var row = gradebookRowFor(i);
@@ -1007,12 +1034,12 @@ function buildGradebookTemplate(sheet) {
       rowRange.setBackground(entry.headerColor).setFontColor("#ffffff").setFontWeight("bold");
       bandIndex = 0;
     } else {
-      rowRange.setBackground(bandIndex % 2 === 0 ? "#ffffff" : entry.subColor);
+      rowRange.setBackground(bandIndex % 2 === 0 ? lightenColor(entry.subColor, 0.5) : entry.subColor);
       bandIndex++;
     }
   });
 
-  sheet.getRange(6, 1, lastRow - 6 + 1, lastWeekCol)
+  sheet.getRange(HEADER_ROW, 1, lastRow - HEADER_ROW + 1, lastWeekCol)
     .setBorder(true, true, true, true, true, true, TEMPLATE_STYLE.gridColor, SpreadsheetApp.BorderStyle.SOLID);
 
   // Column A pulls category labels from Rubrics!B<row> — some (e.g.
@@ -1020,9 +1047,9 @@ function buildGradebookTemplate(sheet) {
   // 220px with no wrap, same issue buildRubricsTemplate already had for its
   // own category column. Wrap here only (not the whole table — the week
   // columns hold short 2-3 digit values that don't need it).
-  sheet.getRange(6, 1, lastRow - 6 + 1, 1).setWrap(true);
+  sheet.getRange(HEADER_ROW, 1, lastRow - HEADER_ROW + 1, 1).setWrap(true);
 
-  sheet.setFrozenRows(6);
+  sheet.setFrozenRows(HEADER_ROW);
   sheet.setFrozenColumns(1);
   sheet.setColumnWidth(1, 220);
 }
