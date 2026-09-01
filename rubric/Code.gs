@@ -960,8 +960,10 @@ function buildRubricsTemplate(sheet) {
   // numeric column in both tabs (Sheets right-aligns numbers by default).
   sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat('0"%"').setHorizontalAlignment("center");
 
+  // Column A (unused/blank) no longer needs freezing now that word wrap
+  // (above) keeps every category label fully visible without one — a
+  // frozen blank leading column was just dead space to scroll past.
   sheet.setFrozenRows(1);
-  sheet.setFrozenColumns(1);
 }
 
 function buildGradebookTemplate(sheet) {
