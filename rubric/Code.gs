@@ -682,10 +682,15 @@ function handleReadGrades(payload) {
     if (!sheet) throw new Error("Target spreadsheet has no Gradebook tab");
 
     var lastCol = sheet.getLastColumn();
-    var headerRow = sheet.getRange(6, 1, 1, lastCol).getValues()[0];
     var numDataRows = flattenCategoryStructure().length;
-    var dataRows = sheet.getRange(7, 1, numDataRows, lastCol).getValues();
-    var currentGrade = sheet.getRange(2, 3).getValue();
+    // One bounding-rectangle read (row 2 through the last data row) instead
+    // of three separate getValues()/getValue() calls — each is its own
+    // round trip to the Sheets backend, and this is the one place in
+    // readGrades that can be collapsed without changing what's read.
+    var block = sheet.getRange(2, 1, numDataRows + 5, lastCol).getValues();
+    var currentGrade = block[0][2];
+    var headerRow = block[4];
+    var dataRows = block.slice(5);
 
     // Only trust columns that actually look like "Week N" — a stray value
     // anywhere past column C on this tab shouldn't turn into a phantom,
