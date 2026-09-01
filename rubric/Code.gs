@@ -816,7 +816,7 @@ function buildRubricsTemplate(sheet) {
     .setFontColor(TEMPLATE_STYLE.headerFg)
     .setFontWeight("bold");
   sheet.setColumnWidth(2, 200);
-  sheet.setColumnWidth(3, 90);
+  sheet.setColumnWidth(3, 130);
   for (var c = 4; c <= 6; c++) sheet.setColumnWidth(c, 260);
 
   var flat = flattenCategoryStructure();
@@ -838,7 +838,15 @@ function buildRubricsTemplate(sheet) {
 
   var lastRow = rubricsRowFor(flat.length - 1);
   sheet.getRange(1, 2, lastRow, numCols)
-    .setBorder(true, true, true, true, true, true, TEMPLATE_STYLE.gridColor, SpreadsheetApp.BorderStyle.SOLID);
+    .setBorder(true, true, true, true, true, true, TEMPLATE_STYLE.gridColor, SpreadsheetApp.BorderStyle.SOLID)
+    .setWrap(true);
+
+  // Percentage of Section holds a raw 0-100 number (Gradebook's Weight
+  // column does Rubrics!C/100 to turn it into a fraction) — the built-in
+  // "0%" format would multiply it up and show 2000% for a value of 20.
+  // A literal "%" suffix leaves the number as-is and just displays it the
+  // way a student expects to see a percentage.
+  sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat('0"%"');
 
   sheet.setFrozenRows(1);
   sheet.setFrozenColumns(1);
@@ -853,7 +861,7 @@ function buildGradebookTemplate(sheet) {
   sheet.getRange(2, 2).setValue("Current Grade").setFontWeight("bold");
   sheet.getRange(2, 3).setFormula(
     '=IFERROR(SUMPRODUCT(C7:C' + lastRow + ', B7:B' + lastRow + ') / SUMIFS(B7:B' + lastRow + ', C7:C' + lastRow + ', ">=0"), "No Data")'
-  );
+  ).setNumberFormat("0%");
   sheet.getRange(2, 2, 1, 2)
     .setBackground(TEMPLATE_STYLE.sectionBg)
     .setFontColor(TEMPLATE_STYLE.sectionFg)
@@ -877,6 +885,11 @@ function buildGradebookTemplate(sheet) {
     ];
   });
   sheet.getRange(7, 1, formulaRows.length, 3).setFormulas(formulaRows);
+  // Weight and Category Grade are both already-divided-by-100 fractions
+  // (see the formulas above) — the built-in "0%" format is the right one
+  // here (unlike Rubrics!C's raw 0-100 percent, see buildRubricsTemplate),
+  // and beats showing a student a bare decimal like 0.85.
+  sheet.getRange(7, 2, formulaRows.length, 2).setNumberFormat("0%");
 
   // Section-header tint + alternating row banding on the sub-item rows —
   // background/font only, column A keeps the formula written above (it pulls
