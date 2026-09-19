@@ -26,6 +26,9 @@ main:
   - title: "Number Go Up"
     url: /number-go-up/
 
+  - title: "Human Chess"
+    url: /human-chess/
+
   # - title: "CV"
   #   url: /cv/
     
