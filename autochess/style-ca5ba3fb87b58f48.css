@@ -175,8 +175,14 @@ h3 { font-size: 1.1rem; text-transform: uppercase; }
 /* Grids */
 .board-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; overflow-x: auto; }
 .enemy-hint, .bench-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-.grid { display: grid; gap: 3px; }
-.cell { width: var(--tile-size); height: var(--tile-size); background: var(--tile); border-radius: 4px; padding: 5px; position: relative; cursor: pointer; border: 1px solid transparent; }
+/* `max-width` keeps the board inside its panel even if a future layout gives it less room
+   than its tiles want; without it a grid of fixed tracks overflows and paints over the
+   next column rather than shrinking. */
+.grid { display: grid; gap: 3px; max-width: 100%; }
+/* Fills its track and stays square, rather than forcing a fixed size the track cannot honour.
+   At full width the track IS --tile-size, so nothing moves; when the column is squeezed the
+   tiles shrink instead of spilling over the panel beside them. */
+.cell { width: 100%; aspect-ratio: 1; background: var(--tile); border-radius: 4px; padding: 5px; position: relative; cursor: pointer; border: 1px solid transparent; }
 .cell:nth-child(odd) { background: var(--tile-alt); }
 .cell:hover { border-color: var(--muted); }
 .cell.sel { border-color: var(--select); box-shadow: 0 0 0 2px var(--select); }
