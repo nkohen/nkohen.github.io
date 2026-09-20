@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autochess · Leptos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<!-- The incumbent page's stylesheet, moved here byte for byte when `web/` was deleted (d36 stage
+     3b) -- git records it as a rename, so the bake-off's measured claim that the Leptos port reused
+     the design work rather than redoing it stays checkable in history. It is now this crate's own,
+     and it is the ONLY stylesheet: every class the page uses is already in here, because those
+     class names describe the engine's screen rather than any one page's markup. -->
+<link rel="stylesheet" href="./style-5ffdf0b6110d8562.css" integrity="sha384-3+S1ZZWJxl+yT2IupBKgsfCeIV2XIMbLTT1tZHRmFSqiReKTKq8lyhvHZh9zTCRM"/>
+<!-- No `data-wasm-opt`: measured -15.6% raw but +6.4% GZIPPED, and gzipped is what a browser
+     downloads. It looks like a free win and is not. -->
+
+<script type="module">
+import init, * as bindings from './autochess-ui-leptos-24773faa4b465ad2.js';
+const wasm = await init({ module_or_path: './autochess-ui-leptos-24773faa4b465ad2_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+<link rel="modulepreload" href="./autochess-ui-leptos-24773faa4b465ad2.js" crossorigin="anonymous" integrity="sha384-T+gdJDkFnjWqzTOCTVEwot/JSqwE9+RUiHGr0LsV+YekuhVc15R1cqRvIOlFP5+r"><link rel="preload" href="./autochess-ui-leptos-24773faa4b465ad2_bg.wasm" crossorigin="anonymous" integrity="sha384-wkkyxBbRmGFF2BHohdSysMS4ZOLguVirYUQdfwQbliu2tZKh5FuhXT1lx1JmFN5/" as="fetch" type="application/wasm"></head>
+<body></body>
+</html>
