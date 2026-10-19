@@ -22,8 +22,8 @@
         }
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-D4GnRiqK.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-D63ouKN2.css">
+    <script type="module" crossorigin src="./assets/index-Bw5oPW4N.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CxY6dwiY.css">
   <link rel="manifest" href="./manifest.webmanifest"></head>
   <body>
     <!--
@@ -44,6 +44,14 @@
         <h1>taskmaster</h1>
         <span id="engine-badge" class="badge" title="decomposition engine"></span>
         <button id="save-file-btn" class="ghost mini" type="button" hidden title="Save your tasks to a file">Save…</button>
+        <button
+          id="sync-btn"
+          class="theme-toggle sync-btn"
+          type="button"
+          hidden
+          title="Sync across devices"
+          aria-label="Sync settings"
+        ><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.2 4.5 4.5 0 0 0 7 18z"/></svg><span class="sync-dot"></span></button>
         <button
           id="undo-btn"
           class="theme-toggle"
@@ -78,6 +86,9 @@
         <div class="add-meta">
           <label class="due-field">Due
             <input type="date" id="add-deadline" aria-label="Deadline (optional)" />
+          </label>
+          <label class="due-field" title="The day you plan to do it — shows on the calendar">Scheduled
+            <input type="date" id="add-scheduled" aria-label="Scheduled day (optional)" />
           </label>
           <span class="recur-field">Repeats
             <select id="add-recur-freq" aria-label="Repeats (optional)">
@@ -133,6 +144,24 @@
           </div>
         </div>
         <div id="ready" class="ready"></div>
+      </section>
+
+      <section id="calendar-section">
+        <div class="section-head">
+          <h2 id="cal-toggle" class="collapsible">Calendar</h2>
+          <div id="cal-controls" class="ready-controls cal-controls">
+            <span id="cal-view" class="seg" role="group" aria-label="Calendar view">
+              <button type="button" data-view="week">Week</button>
+              <button type="button" data-view="month">Month</button>
+            </span>
+            <span class="cal-nav">
+              <button type="button" class="ghost mini" id="cal-prev" aria-label="Previous">‹</button>
+              <button type="button" class="ghost mini" id="cal-today">Today</button>
+              <button type="button" class="ghost mini" id="cal-next" aria-label="Next">›</button>
+            </span>
+          </div>
+        </div>
+        <div id="calendar"></div>
       </section>
 
       <section id="map-section">
